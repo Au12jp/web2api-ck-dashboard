@@ -1,0 +1,21 @@
+{
+  "publishedAt": "2026-10-25T16:20:37.179Z",
+  "sessions": [
+    {
+      "service": "claude",
+      "account": "default",
+      "savedAt": "2026-10-25T16:20:33.197Z",
+      "probeOk": true,
+      "cookieCount": 56,
+      "originCount": 2
+    },
+    {
+      "service": "kimi",
+      "account": "default",
+      "savedAt": "2026-10-25T16:20:37.044Z",
+      "probeOk": true,
+      "cookieCount": 59,
+      "originCount": 1
+    }
+  ]
+}
