@@ -62,6 +62,9 @@
   .sbtn{border:1px solid var(--line);background:#FBFAF7;border-radius:99px;padding:3px 12px;font-size:11.5px;cursor:pointer;color:var(--ink2)}
   .sbtn:hover{border-color:var(--accent);color:var(--accent)}
   .prog{font-size:11.5px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+  .artifact{margin:8px 0 2px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .artifact summary{cursor:pointer;padding:7px 10px;font-size:12px;background:var(--bg2);user-select:none}
+  .artifact pre{margin:0;padding:10px;font-size:12px;overflow:auto;max-height:320px;background:var(--bg);white-space:pre-wrap;word-break:break-all}
   .spin{width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   /* ---------- ヒーロー ---------- */
@@ -129,6 +132,7 @@
   <span class="pill" id="repoPill"></span>
   <span class="spacer"></span>
   <button class="hbtn" id="sessionsBtn">セッション</button>
+  <button class="hbtn" id="schedBtn" title="定時プロンプトの cron スケジュール管理">⏰ 定時</button>
   <button class="hbtn" id="runsBtn">実行ログ</button>
   <button class="hbtn" id="shareBtn" style="display:none">共有</button>
   <button class="hbtn" id="linkBtn" style="display:none" title="鍵付きリンクを即コピー">🔗 リンク</button>
@@ -140,6 +144,13 @@
 </div>
 
 <div id="sessionsSheet" class="sheet"><div class="sh"><button class="hbtn" data-close>← 閉じる</button><b>セッション状態</b><span class="spacer"></span><button class="hbtn" id="probeNow" style="display:none">今すぐプローブ</button></div><div id="sessionsBody"></div></div>
+<div id="schedSheet" class="sheet"><div class="sh"><button class="hbtn" data-close>← 閉じる</button><b>定時プロンプト（cron）</b><span class="spacer"></span><button class="hbtn" id="schedSave">保存</button></div>
+  <div style="padding:14px 18px">
+    <p style="font-size:12px;color:var(--ink2);margin:0 0 10px">warm ループが毎分照合し、該当時刻に自動でプロンプトを投入します。<code>{"name","cron":"分 時 日 月 曜","model","prompt","enabled"}</code> の配列を <code>schedules</code> キーに入れてください。</p>
+    <textarea id="schedJson" spellcheck="false" style="width:100%;height:46vh;font-family:ui-monospace,monospace;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg)"></textarea>
+    <p id="schedMsg" style="font-size:12px;color:var(--ink2)"></p>
+  </div>
+</div>
 <div id="runsSheet" class="sheet"><div class="sh"><button class="hbtn" data-close>← 閉じる</button><b>ワークフロー実行ログ</b></div><div id="runsBody"></div></div>
 
 <div id="composer">
@@ -170,6 +181,7 @@
     <div class="tokrow">
       <button class="hbtn" id="tokScopes">② 基本スコープをコピー（repo, workflow）</button>
       <button class="hbtn" id="tokScopesAll">② 全権限セットをコピー</button>
+      <button class="hbtn" id="tokWizard" style="border-color:var(--accent);color:var(--accent)">🪄 ①② まとめて（スコープコピー＋発行ページを開く）</button>
       <button class="hbtn" id="pasteBtn">③ クリップボードから自動取り込み</button>
     </div>
     <div style="font-size:11px;color:var(--ink2);margin:6px 0 10px">① で別タブが開きます（GitHub の入力欄はブラウザのセキュリティ上、外部サイトからは触れないため）。発行 → Copy → <b>このタブに戻るだけで自動で入力欄に入ります</b>（戻るだけで検出。③ は保険です）。全作業は最初の 1 回だけ。</div>
@@ -352,7 +364,12 @@ function respInner(r){
   if(r.state==='error'||(r.state==='done_partial'&&r.error&&!r.content)) return `<div class="txt" style="color:var(--err)">${esc(r.error||'失敗')}</div>`;
   if(r.state==='queued'||r.state==='dispatched'||r.state==='running') return `<div class="prog"><span class="spin"></span>${r.state==='running'?'実行中…':'GitHub Actions キュー待ち…'}</div>`;
   if(r.streaming) return `<div class="txt">${md(r.shown)}<span class="cursor"></span></div>`;
-  return `<div class="txt">${md(r.content||'')}</div>`;
+  // Claude Artifacts: 応答に紐づく成果物（コード/表/テキスト）を折りたたみで提示
+  let arts='';
+  if(r.artifacts && r.artifacts.length){
+    arts = r.artifacts.map((a,j)=>`<details class="artifact" ${j===0?'open':''}><summary>📦 ${esc(a.title||('artifact-'+(j+1)))} <span class="badge">${esc(a.type||'')}${a.language?(' · '+esc(a.language)):''}</span></summary><pre>${esc(a.content||'')}</pre></details>`).join('');
+  }
+  return `<div class="txt">${md(r.content||'')}</div>${arts}`;
 }
 function updateBubbles(t){ // 応答状態が変わったバブルだけ更新
   t.responses.forEach((r,i)=>{
@@ -446,6 +463,7 @@ async function hydrateResults(t, batchId){
       if(!it) return;
       r.state = it.ok ? 'done' : 'error';
       r.content = it.content||''; r.error = it.error; r.latencyMs = it.latencyMs; r.attempts = it.attempts;
+      r.artifacts = it.artifacts || null; // Claude Artifacts 等の副次成果物
       if(it.ok && r.content) streamIn(t, i, r.content);
     });
     saveTurns(); updateBubbles(t);
@@ -540,7 +558,27 @@ async function openSessions(){
     <table class="items"><tr><th>状態</th><th>サービス</th><th>アカウント</th><th>保存日時</th><th>cookies</th></tr>
     ${ss.map(s=>`<tr><td><span class="dot ${s.probeOk===true?'ok':(s.probeOk===false?'dead':'unknown')}"></span>${s.probeOk===true?'正常':(s.probeOk===false?'失敗':'未検査')}</td>
       <td>${esc(s.service)}</td><td>${esc(s.account)}</td><td>${s.savedAt?rel(s.savedAt):'—'}</td><td>${s.cookieCount??'—'}</td></tr>`).join('')||'<tr><td colspan="5">バンドル未配置</td></tr>'}</table>
-    <div style="font-size:11.5px;color:var(--ink2);margin-top:10px">失敗時の復旧: ローカルで <code>npm run login:&lt;service&gt;</code> → <code>pack-session --push</code>。state 汚染時は <code>ops-commit restore-state</code> で世代復元。</div>`;
+    <div style="font-size:11.5px;color:var(--ink2);margin-top:10px">失敗時の復旧: ローカルで <code>npm run login:&lt;service&gt;</code> → <code>pack-session --push</code>。state 汚染時は <code>ops-commit restore-state</code> で世代復元。</div>
+    <div id="schedView" style="margin-top:14px"></div>`;
+  // アカウントの時間帯制限・日次予算（accounts.json on main）を併記
+  const sv=$('#schedView');
+  if(cfg&&cfg.token){
+    try{
+      const d=await ghApi(`/repos/${cfg.repo}/contents/accounts.json?ref=main`);
+      if(d&&d.content){
+        const accts=JSON.parse(bytesFromB64(d.content).toString());
+        const rows=[];
+        for(const [svc,cfg2] of Object.entries(accts.services||{})){
+          for(const a of (cfg2.accounts||[])){
+            rows.push(`<tr><td>${esc(svc)}</td><td>${esc(a.name)}</td><td>${a.windows?esc(JSON.stringify(a.windows)):'常時可'}</td><td>${a.dailyMessages??'∞'}</td></tr>`);
+          }
+        }
+        if(rows.length) sv.innerHTML=`<b style="font-size:12.5px">アカウント制限（accounts.json）</b>
+          <table class="items" style="margin-top:6px"><tr><th>サービス</th><th>アカウント</th><th>使用可能時間帯</th><th>日次上限</th></tr>${rows.join('')}</table>
+          <div style="font-size:11px;color:var(--ink2);margin-top:4px">編集はリポジトリの <code>accounts.json</code> から（windows: ["09:00-23:30"] 形式、日跨ぎ可・複数指定可）</div>`;
+      }
+    }catch{ /* 非表示でよい */ }
+  }
 }
 async function openRuns(){
   $('#runsSheet').classList.add('open');
@@ -557,6 +595,41 @@ async function openRuns(){
 }
 $('#sessionsBtn').onclick=openSessions;
 $('#runsBtn').onclick=openRuns;
+
+/* ---------- シート: 定時プロンプト（ops: config/schedules.json） ---------- */
+async function openSched(){
+  $('#schedSheet').classList.add('open');
+  $('#schedMsg').textContent='読み込み中…';
+  let cur={schedules:[]};
+  if(cfg&&cfg.token){
+    try{ const raw=await getOpsFile('config/schedules.json'); if(raw) cur=JSON.parse(td.decode(raw)); }catch{}
+  }
+  if(!cur.schedules) cur={schedules:[]};
+  $('#schedJson').value=JSON.stringify(cur,null,2);
+  $('#schedMsg').textContent=cfg&&cfg.token?'編集後「保存」を押すと即座に warm ループに反映されます（次の分の照合から）。':'読み取り専用（保存にはロック解除が必要）';
+}
+$('#schedBtn').onclick=openSched;
+$('#schedSave').onclick=async()=>{
+  if(!cfg||!cfg.token){ toast('ロック解除が必要です'); return; }
+  try{
+    const obj=JSON.parse($('#schedJson').value);
+    if(!obj||!Array.isArray(obj.schedules)) throw new Error('schedules キーに配列が必要です');
+    // cron 妥当性の事前検証（保存前に必ず検査。runner 側 cronlite と同等の規則）
+    const fieldOk=(f,min,max)=>String(f).split(',').every(p=>{const m=p.match(/^(\*|\d+(?:-\d+)?)(?:\/(\d+))?$/);if(!m)return false;const a=m[1]==='*'?min:+m[1].split('-')[0];const b=m[1]==='*'||(m[1].includes('-'))?+(m[1].split('-')[1]||max):(m[2]?max:+m[1]);return a>=min&&b<=max&&a<=b;});
+    for(const s of obj.schedules){
+      if(!s.enabled) continue;
+      const f=String(s.cron||'').trim().split(/\s+/);
+      if(f.length!==5) throw new Error(`「${s.name||'?'}」cron は 5 フィールド（分 時 日 月 曜）が必要です`);
+      const ranges=[[0,59],[0,23],[1,31],[1,12],[0,6]];
+      f.forEach((x,i)=>{ if(!fieldOk(x,ranges[i][0],ranges[i][1])) throw new Error(`「${s.name||'?'}」のフィールド "${x}" が不正です`); });
+      if(!s.model||!s.prompt) throw new Error(`「${s.name||'?'}」model/prompt が未設定です`);
+    }
+    await putOpsFile('config/schedules.json', te.encode(JSON.stringify(obj,null,2)+'\n'), 'web: update schedules');
+    $('#schedMsg').textContent='保存しました ✓（次の分の照合から有効）';
+    toast('定時スケジュールを保存しました');
+  }catch(e){ $('#schedMsg').textContent='保存失敗: '+e.message; }
+};
+
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('.sheet').classList.remove('open'));
 $('#probeNow').onclick=async()=>{
   if(!cfg)return;
@@ -582,13 +655,27 @@ $('#lockCancel').onclick=()=>$('#modal').classList.remove('open');
 $('#tokScopes').onclick=()=>{ navigator.clipboard.writeText('repo, workflow').then(()=>toast('基本スコープ（repo, workflow）をコピーしました')); };
 const ALL_SCOPES=['repo','repo:status','repo_deployment','public_repo','repo:invite','security_events','workflow','write:packages','read:packages','delete:packages','admin:org','write:org','read:org','admin:public_key','write:public_key','read:public_key','admin:repo_hook','write:repo_hook','read:repo_hook','admin:org_hook','gist','notifications','user','read:user','user:email','user:follow','delete_repo','write:discussion','read:discussion','admin:gpg_key','write:gpg_key','read:gpg_key','project','read:project'];
 $('#tokScopesAll').onclick=()=>{ navigator.clipboard.writeText(ALL_SCOPES.join(', ')).then(()=>toast('全権限セット（'+ALL_SCOPES.length+' スコープ）をコピーしました')); };
+// ワンクリック発行フロー: 全スコープをコピーしてから発行ページを開く。
+// ユーザーは「Generate token」を押すだけ。クリップボード監視が③の取り込みを自動で行う。
+$('#tokWizard').onclick=async()=>{
+  try{ await navigator.clipboard.writeText(ALL_SCOPES.join(', ')); }catch{}
+  toast('全スコープをコピーしました — 発行ページで「Generate token」を押してください');
+  setTimeout(()=>window.open('https://github.com/settings/tokens/new','_blank','noopener'), 600);
+};
 async function grabClipboard(){
   if(!$('#modal').classList.contains('open')) return;
   if($('#fToken').value.trim()) return;
   try{
     const txt=(await navigator.clipboard.readText()||'').trim();
     const m=txt.match(/(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/);
-    if(m){ $('#fToken').value=m[1]; toast('トークンを自動検出しました ✨ — あとは STATE_PASSPHRASE だけ'); }
+    if(m){
+      $('#fToken').value=m[1]; toast('トークンを自動検出しました ✨ — あとは STATE_PASSPHRASE だけ');
+      // パスも揃っていれば自動で保存まで完結させる（ゼロ入力設計の頂点）
+      if($('#fPass').value.trim() && $('#fRepo').value.trim()){
+        toast('全項目が揃いました — 自動で保存します');
+        setTimeout(()=>$('#lockOk').click(), 700);
+      }
+    }
   }catch{}
 }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) grabClipboard(); });
