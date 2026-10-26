@@ -410,6 +410,15 @@ async function dispatchCore(requests, t){
   const enc=await encryptWckp1(cfg.pass, te.encode(JSON.stringify(requests)));
   await putOpsFile(`payloads/${id}.json.crypt`, te.encode(enc+'\n'), `web: dispatch ${id} (${requests.length} req)`);
   await putOpsFile(`status/${id}.json`, te.encode(JSON.stringify({batch_id:id, state:'queued', total:requests.length, ok:0, failed:0, queuedAt:new Date().toISOString(), source:'dashboard'}, null, 2)), `web: queued ${id}`);
+  // ウォームランナー稼働中なら Actions dispatch を省略（ランナーが 5 秒以内に拾う）
+  try{
+    const warmRaw=await getOpsFile('status/warm.json');
+    if(warmRaw){ const w=JSON.parse(td.decode(warmRaw));
+      if(w.active && w.updatedAt && Date.now()-new Date(w.updatedAt).getTime()<5*60*1000){
+        toast('ウォームランナーに受け付けました（応答まで数十秒）'); return id;
+      }
+    }
+  }catch{}
   try{
     await ghApi(`/repos/${cfg.repo}/actions/workflows/batch.yml/dispatches`, {method:'POST', body:{ref:'main', inputs:{batch_id:id, request_count:String(requests.length)}}});
   }catch(e){
