@@ -131,6 +131,7 @@
   <button class="hbtn" id="sessionsBtn">セッション</button>
   <button class="hbtn" id="runsBtn">実行ログ</button>
   <button class="hbtn" id="shareBtn" style="display:none">共有</button>
+  <button class="hbtn" id="linkBtn" style="display:none" title="鍵付きリンクを即コピー">🔗 リンク</button>
   <button class="hbtn" id="unlockBtn">ロック解除</button>
 </header>
 
@@ -167,10 +168,11 @@
       <a class="hbtn lk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">① Fine-grained で発行</a>
     </div>
     <div class="tokrow">
-      <button class="hbtn" id="tokScopes">② 推奨スコープをコピー</button>
+      <button class="hbtn" id="tokScopes">② 基本スコープをコピー（repo, workflow）</button>
+      <button class="hbtn" id="tokScopesAll">② 全権限セットをコピー</button>
       <button class="hbtn" id="pasteBtn">③ クリップボードから自動取り込み</button>
     </div>
-    <div style="font-size:11px;color:var(--ink2);margin:6px 0 10px">① で別タブが開きます（GitHub の入力欄はブラウザのセキュリティ上、外部サイトからは触れないため）。発行 → コピー → ③ を押すだけでここに入ります。全作業は最初の 1 回だけ。</div>
+    <div style="font-size:11px;color:var(--ink2);margin:6px 0 10px">① で別タブが開きます（GitHub の入力欄はブラウザのセキュリティ上、外部サイトからは触れないため）。発行 → Copy → <b>このタブに戻るだけで自動で入力欄に入ります</b>（戻るだけで検出。③ は保険です）。全作業は最初の 1 回だけ。</div>
     <label>STATE_PASSPHRASE</label><input id="fPass" type="password" placeholder="ops ブランチ復号鍵" autocomplete="off">
     <div id="tokInfo" style="display:none;font-size:12px;background:var(--accent-soft);border:1px solid #F3C89D;border-radius:10px;padding:8px 10px;margin-top:8px"></div>
     <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
@@ -552,16 +554,21 @@ function openLock(){
 }
 $('#unlockBtn').onclick=openLock;
 $('#lockCancel').onclick=()=>$('#modal').classList.remove('open');
-$('#tokScopes').onclick=()=>{ navigator.clipboard.writeText('repo, workflow').then(()=>toast('スコープ名をコピーしました — 発行画面のチェックに使ってください')); };
-$('#pasteBtn').onclick=async()=>{
+$('#tokScopes').onclick=()=>{ navigator.clipboard.writeText('repo, workflow').then(()=>toast('基本スコープ（repo, workflow）をコピーしました')); };
+const ALL_SCOPES=['repo','repo:status','repo_deployment','public_repo','repo:invite','security_events','workflow','write:packages','read:packages','delete:packages','admin:org','write:org','read:org','admin:public_key','write:public_key','read:public_key','admin:repo_hook','write:repo_hook','read:repo_hook','admin:org_hook','gist','notifications','user','read:user','user:email','user:follow','delete_repo','write:discussion','read:discussion','admin:gpg_key','write:gpg_key','read:gpg_key','project','read:project'];
+$('#tokScopesAll').onclick=()=>{ navigator.clipboard.writeText(ALL_SCOPES.join(', ')).then(()=>toast('全権限セット（'+ALL_SCOPES.length+' スコープ）をコピーしました')); };
+async function grabClipboard(){
+  if(!$('#modal').classList.contains('open')) return;
+  if($('#fToken').value.trim()) return;
   try{
     const txt=(await navigator.clipboard.readText()||'').trim();
     const m=txt.match(/(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/);
-    if(!m){ toast('クリップボードに GitHub トークンが見つかりませんでした'); return; }
-    $('#fToken').value=m[1];
-    toast('トークンを自動取り込みしました — あとは STATE_PASSPHRASE だけ');
-  }catch(e){ toast('クリップボードの読み取りが許可されていません（ブラウザの権限を確認）'); }
-};
+    if(m){ $('#fToken').value=m[1]; toast('トークンを自動検出しました ✨ — あとは STATE_PASSPHRASE だけ'); }
+  }catch{}
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) grabClipboard(); });
+setInterval(grabClipboard, 3000); // モーダルが開いていてトークン欄が空なら常時監視
+$('#pasteBtn').onclick=grabClipboard;
 function renderTokInfo(u){
   const el=$('#tokInfo'); const meta=window._ghMeta||{};
   const lack=['repo','workflow'].filter(s=>!(meta.scopes||'').split(/,\s*/).includes(s));
@@ -591,6 +598,10 @@ $('#nativeShare').onclick=()=>{
   else navigator.clipboard.writeText(url).then(()=>toast('この端末ではコピーにフォールバックしました'));
 };
 $('#shareBtn').onclick=openLock;
+$('#linkBtn').onclick=()=>{
+  if(!cfg||!cfg.token) return;
+  navigator.clipboard.writeText(shareURL(true)).then(()=>toast('鍵付きリンクをコピーしました — そのまま誰かに送れます'));
+};
 
 function applyMode(){
   const op=!!(cfg&&cfg.token);
@@ -599,6 +610,7 @@ function applyMode(){
   $('#repoPill').textContent=op?cfg.repo:PUBLIC_REPO;
   $('#unlockBtn').textContent=op?'設定・共有':'ロック解除';
   $('#shareBtn').style.display=op?'inline-block':'none';
+  $('#linkBtn').style.display=op?'inline-block':'none';
   $('#probeNow').style.display=op?'inline-block':'none';
   $('#composer').style.opacity=op?'1':'0.55';
 }
