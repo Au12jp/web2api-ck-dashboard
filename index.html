@@ -115,6 +115,9 @@
   .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .stat .v{font-family:var(--serif);font-size:21px;font-weight:700;line-height:1.2}
   .stat .l{font-size:10.5px;color:var(--ink2)}
+  .tokrow{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+  .hbtn.lk{text-decoration:none;display:inline-block}
+  #wipeBtn{color:var(--err);border-color:#F1C0C0}
 </style>
 </head>
 <body>
@@ -159,7 +162,17 @@
     <div style="font-size:12px;color:var(--ink2)">トークン・鍵はこのブラウザの localStorage にのみ保存され、GitHub API へ直接送られます。入力は最初の一度だけ — あとは「共有リンク」を開くだけで誰でもそのまま使えます。</div>
     <label>リポジトリ（owner/name）</label><input id="fRepo" placeholder="Au12jp/web2api-ck" autocomplete="off">
     <label>GitHub トークン（repo / workflow スコープ）</label><input id="fToken" type="password" placeholder="ghp_... / github_pat_..." autocomplete="off">
+    <div class="tokrow">
+      <a class="hbtn lk" href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">① GitHub で発行（classic）</a>
+      <a class="hbtn lk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">① Fine-grained で発行</a>
+    </div>
+    <div class="tokrow">
+      <button class="hbtn" id="tokScopes">② 推奨スコープをコピー</button>
+      <button class="hbtn" id="pasteBtn">③ クリップボードから自動取り込み</button>
+    </div>
+    <div style="font-size:11px;color:var(--ink2);margin:6px 0 10px">① で別タブが開きます（GitHub の入力欄はブラウザのセキュリティ上、外部サイトからは触れないため）。発行 → コピー → ③ を押すだけでここに入ります。全作業は最初の 1 回だけ。</div>
     <label>STATE_PASSPHRASE</label><input id="fPass" type="password" placeholder="ops ブランチ復号鍵" autocomplete="off">
+    <div id="tokInfo" style="display:none;font-size:12px;background:var(--accent-soft);border:1px solid #F3C89D;border-radius:10px;padding:8px 10px;margin-top:8px"></div>
     <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
       <button class="hbtn" id="lockCancel">キャンセル</button>
       <button class="hbtn" id="lockOk" style="background:var(--accent);border-color:var(--accent);color:#fff">保存して解除</button>
@@ -170,6 +183,8 @@
       <div style="display:flex;gap:8px">
         <button class="hbtn" id="copyLink">コピー</button>
         <button class="hbtn" id="nativeShare">共有シートで送る</button>
+        <span class="spacer"></span>
+        <button class="hbtn" id="wipeBtn">この端末の鍵を完全消去</button>
       </div>
     </div>
   </div>
@@ -215,6 +230,7 @@ async function ghApi(path, opts={}){
   if(res.status===404 && (opts.method||'GET')!=='PUT') return null;
   const text = await res.text(); let data=null; try{ data=JSON.parse(text); }catch{}
   if(!res.ok) throw new Error(((data&&data.message)||text||res.status).toString().slice(0,220));
+  window._ghMeta={scopes:res.headers.get('X-OAuth-Scopes')||'', accepted:res.headers.get('X-Accepted-OAuth-Scopes')||''};
   return data;
 }
 async function getOpsFile(path){ const d=await ghApi(`/repos/${cfg.repo}/contents/${path}?ref=gha-ops`); return (d&&d.content)?bytesFromB64(d.content):null; }
@@ -530,18 +546,43 @@ function shareURL(withToken){
 function openLock(){
   $('#fRepo').value=cfg?.repo||''; $('#fToken').value=cfg?.token||''; $('#fPass').value=cfg?.pass||'';
   $('#sharebox').style.display=cfg&&cfg.token?'block':'none';
-  if(cfg&&cfg.token) $('#shareLink').value=shareURL(true);
+  if(cfg&&cfg.token){ $('#shareLink').value=shareURL(true); ghApi('/user').then(renderTokInfo).catch(()=>{ $('#tokInfo').style.display='none'; }); }
+  else $('#tokInfo').style.display='none';
   $('#modal').classList.add('open');
 }
 $('#unlockBtn').onclick=openLock;
 $('#lockCancel').onclick=()=>$('#modal').classList.remove('open');
+$('#tokScopes').onclick=()=>{ navigator.clipboard.writeText('repo, workflow').then(()=>toast('スコープ名をコピーしました — 発行画面のチェックに使ってください')); };
+$('#pasteBtn').onclick=async()=>{
+  try{
+    const txt=(await navigator.clipboard.readText()||'').trim();
+    const m=txt.match(/(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/);
+    if(!m){ toast('クリップボードに GitHub トークンが見つかりませんでした'); return; }
+    $('#fToken').value=m[1];
+    toast('トークンを自動取り込みしました — あとは STATE_PASSPHRASE だけ');
+  }catch(e){ toast('クリップボードの読み取りが許可されていません（ブラウザの権限を確認）'); }
+};
+function renderTokInfo(u){
+  const el=$('#tokInfo'); const meta=window._ghMeta||{};
+  const lack=['repo','workflow'].filter(s=>!(meta.scopes||'').split(/,\s*/).includes(s));
+  el.style.display='block';
+  el.innerHTML=`✅ 接続中: <b>@${esc(u.login)}</b>（${u.name?esc(u.name)+' · ':''}ID ${u.id}）<br>`+
+    `スコープ: <code>${esc(meta.scopes||'（取得不可）')}</code>${lack.length?` <span style="color:var(--err)">⚠️ 不足: ${lack.join(', ')}</span>`:' <span style="color:var(--ok)">十分です</span>'}`+
+    `<br>トークン: <code>${esc(cfg.token.slice(0,7))}••••••</code>（${cfg.token.startsWith('github_pat_')?'fine-grained':'classic'}）`;
+}
 $('#lockOk').onclick=async()=>{
   const repo=$('#fRepo').value.trim(), token=$('#fToken').value.trim(), pass=$('#fPass').value;
   if(!repo||!token||!pass){ toast('3 項目すべて必須です'); return; }
   cfg={repo, token, pass}; saveCfg();
-  try{ const u=await ghApi('/user'); toast(`ロック解除しました（@${u.login}）`); applyMode(); renderChat(); }
+  try{ const u=await ghApi('/user'); toast(`ロック解除しました（@${u.login}）`); renderTokInfo(u); applyMode(); renderChat(); }
   catch(e){ toast('検証失敗: '+e.message.slice(0,140)); cfg=null; return; }
   $('#sharebox').style.display='block'; $('#shareLink').value=shareURL(true);
+};
+$('#wipeBtn').onclick=()=>{
+  localStorage.removeItem('w2ckdash'); localStorage.removeItem('w2ckdash.threads');
+  cfg=null; turns=[]; saveTurns(); applyMode(); renderChat();
+  $('#modal').classList.remove('open');
+  toast('この端末から鍵と履歴を完全消去しました');
 };
 $('#copyLink').onclick=()=>{ navigator.clipboard.writeText(shareURL(true)).then(()=>toast('鍵付きリンクをコピーしました')); };
 $('#nativeShare').onclick=()=>{
