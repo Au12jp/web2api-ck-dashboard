@@ -2,115 +2,151 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F3EE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>web2api console</title>
 <style>
   :root{
     --bg:#F5F3EE; --card:#FFFFFF; --ink:#1F1D1A; --ink2:#6E6A60; --line:#E7E2D6;
-    --accent:#C9642F; --accent2:#B2551F; --ok:#2F9E44; --warn:#E8890C; --err:#E03131;
-    --run:#1971C2; --queued:#868E96; --serif:"Charter","Bitstream Charter",Georgia,"Times New Roman",serif;
+    --accent:#C9642F; --accent2:#B2551F; --accent-soft:#FDEEDC;
+    --ok:#2F9E44; --warn:#E8890C; --err:#E03131; --run:#1971C2; --queued:#868E96;
+    --serif:"Charter","Bitstream Charter",Georgia,"Times New Roman",serif;
     --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sat:env(safe-area-inset-bottom,0px);
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.6}
-  .wrap{max-width:900px;margin:0 auto;padding:20px 20px 180px}
-  header{display:flex;align-items:baseline;gap:12px;padding:18px 4px 6px;border-bottom:1px solid var(--line)}
-  header h1{font-family:var(--serif);font-size:26px;font-weight:700;margin:0;letter-spacing:.2px}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65;
+       -webkit-font-smoothing:antialiased}
+  button{font-family:var(--sans)}
+  /* ---------- ヘッダ ---------- */
+  header{position:sticky;top:0;z-index:20;background:rgba(245,243,238,.92);backdrop-filter:blur(10px);
+         border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 16px}
+  header h1{font-family:var(--serif);font-size:20px;font-weight:700;margin:0}
   header h1 em{color:var(--accent);font-style:normal}
-  .pill{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:#FBFAF7;color:var(--ink2);white-space:nowrap}
-  .pill.live{background:#E7F5EB;border-color:#B2E0BF;color:#237032}
-  .pill.op{background:#FDEEDC;border-color:#F3C89D;color:#9A4E12}
+  .pill{font-size:11.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:#FBFAF7;color:var(--ink2);white-space:nowrap}
+  .pill.op{background:var(--accent-soft);border-color:#F3C89D;color:#9A4E12;font-weight:600}
   .pill.demo{background:#FFF3BF;border-color:#FFE08A;color:#8a6d00}
   .spacer{flex:1}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
-  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
-  .stat .v{font-family:var(--serif);font-size:24px;font-weight:700;line-height:1.2}
-  .stat .l{font-size:11px;color:var(--ink2);letter-spacing:.4px}
-  .tabs{display:flex;gap:4px;margin:8px 0 14px;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
-  .tab{border:1px solid var(--line);background:#FBFAF7;color:var(--ink2);padding:7px 16px;border-radius:99px;cursor:pointer;font-size:13px}
-  .tab.active{background:var(--ink);color:#F5F3EE;border-color:var(--ink)}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(31,29,26,.04)}
-  .card .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .bid{font-family:var(--mono);font-size:12px;color:var(--ink2)}
-  .badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;letter-spacing:.3px}
+  .hbtn{border:1px solid var(--line);background:#FBFAF7;border-radius:99px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+  .hbtn:hover{border-color:var(--accent);color:var(--accent)}
+  /* ---------- レイアウト ---------- */
+  #main{max-width:880px;margin:0 auto;padding:0 14px calc(150px + var(--sat))}
+  /* ---------- チャット ---------- */
+  #chat{padding-top:14px}
+  .msg{display:flex;gap:10px;margin:0 0 18px}
+  .msg .av{flex:0 0 32px;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+           font-weight:700;font-size:14px;color:#fff;margin-top:2px;user-select:none}
+  .av.u{background:#4D4A43}.av.claude{background:var(--accent)}.av.kimi{background:#0F8B6C}
+  .msg .body{flex:1;min-width:0}
+  .meta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);margin-bottom:4px;flex-wrap:wrap}
+  .bub{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;box-shadow:0 1px 2px rgba(31,29,26,.04)}
+  .msg.user .bub{background:#EFECE3}
+  .bub .txt{white-space:pre-wrap;word-break:break-word}
+  .bub pre{white-space:pre-wrap;font-family:var(--mono);font-size:12.5px;background:#FBFAF7;border:1px solid var(--line);
+           border-radius:10px;padding:10px;margin:8px 0;overflow-x:auto}
+  .bub code{font-family:var(--mono);font-size:.92em;background:#F1EEE5;padding:1px 5px;border-radius:5px}
+  .bub pre code{background:none;padding:0}
+  .bub ul,.bub ol{margin:6px 0;padding-left:22px}
+  .bub h1,.bub h2,.bub h3{font-family:var(--serif);margin:10px 0 4px;line-height:1.3}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:99px;letter-spacing:.3px;white-space:nowrap}
   .b-done{background:#E7F5EB;color:var(--ok)} .b-done_partial{background:#FFF3BF;color:#8a6d00}
   .b-error{background:#FFE3E3;color:var(--err)} .b-queued,.b-dispatched{background:#EEF0F2;color:var(--queued)}
   .b-running{background:#E0EDFB;color:var(--run)}
-  .time{margin-left:auto;font-size:12px;color:var(--ink2)}
-  table.items{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px}
-  table.items td,table.items th{border-top:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
-  table.items th{color:var(--ink2);font-weight:600;font-size:11px;border-top:0}
-  pre.content{white-space:pre-wrap;font-family:var(--mono);font-size:12px;background:#FBFAF7;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0 0;max-height:340px;overflow:auto}
-  .rowbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  button.act{border:1px solid var(--line);background:#FBFAF7;border-radius:99px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--ink)}
-  button.act:hover{border-color:var(--accent);color:var(--accent)}
-  button.act.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  button.act.primary:hover{background:var(--accent2)}
-  button.act:disabled{opacity:.45;cursor:not-allowed}
-  /* composer（Claude 風・下部中央） */
-  #composer{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;width:min(860px,94vw);z-index:10}
-  #composer .box{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 8px 30px rgba(31,29,26,.12);padding:12px 14px}
-  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-  .chip{border:1px solid var(--line);background:#FBFAF7;border-radius:99px;padding:3px 12px;font-size:12px;cursor:pointer;color:var(--ink2)}
-  .chip.on{background:#FDEEDC;border-color:var(--accent);color:var(--accent2);font-weight:600}
-  #input{width:100%;border:0;outline:0;resize:none;font-family:var(--sans);font-size:14.5px;background:transparent;color:var(--ink);max-height:160px}
-  .cfoot{display:flex;align-items:center;gap:8px;margin-top:6px}
-  .hint{font-size:11px;color:var(--ink2)}
-  #send{width:36px;height:36px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-  #send:hover{background:var(--accent2)} #send:disabled{opacity:.45;cursor:not-allowed}
-  .qitem{font-size:12px;background:#FBFAF7;border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px;display:flex;gap:8px;align-items:center}
-  .qitem .m{font-family:var(--mono);color:var(--accent2);font-size:11px;white-space:nowrap}
-  .qitem .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--ink2)}
-  /* modal / toast */
-  #modal{display:none;position:fixed;inset:0;background:rgba(31,29,26,.45);z-index:50;align-items:center;justify-content:center;padding:20px}
-  #modal.open{display:flex}
-  #modal .mcard{background:var(--card);border-radius:18px;max-width:520px;width:100%;padding:22px;border:1px solid var(--line)}
-  #modal h2{font-family:var(--serif);margin:0 0 4px;font-size:20px}
-  #modal label{display:block;font-size:12px;color:var(--ink2);margin:10px 0 3px}
-  #modal input{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;font-family:var(--mono)}
-  #toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center}
-  .tmsg{background:var(--ink);color:#F5F3EE;border-radius:99px;padding:8px 18px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:fade .3s}
-  @keyframes fade{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
+  .cursor{display:inline-block;width:7px;height:15px;background:var(--accent);vertical-align:-2px;animation:blink .8s infinite}
+  @keyframes blink{50%{opacity:0}}
+  .mfoot{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .sbtn{border:1px solid var(--line);background:#FBFAF7;border-radius:99px;padding:3px 12px;font-size:11.5px;cursor:pointer;color:var(--ink2)}
+  .sbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .prog{font-size:11.5px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+  .spin{width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  /* ---------- ヒーロー ---------- */
+  #hero{text-align:center;padding:56px 16px 26px}
+  #hero .t{font-family:var(--serif);font-size:clamp(24px,5vw,34px);font-weight:700;margin:0 0 8px}
+  #hero .s{color:var(--ink2);font-size:13.5px;margin:0 0 20px}
+  .sugg{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .sugg button{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:7px 15px;font-size:12.5px;cursor:pointer;color:var(--ink2)}
+  .sugg button:hover{border-color:var(--accent);color:var(--accent)}
+  /* ---------- コンポーザ ---------- */
+  #composer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + var(--sat));width:min(860px,96vw);z-index:15}
+  #composer .box{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 8px 30px rgba(31,29,26,.13);padding:10px 12px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+  .chip{border:1px solid var(--line);background:#FBFAF7;border-radius:99px;padding:4px 12px;font-size:12px;cursor:pointer;color:var(--ink2)}
+  .chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent2);font-weight:700}
+  #input{width:100%;border:0;outline:0;resize:none;font-family:var(--sans);font-size:16px;background:transparent;color:var(--ink);max-height:170px}
+  .cfoot{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .cbtn{border:1px solid var(--line);background:#FBFAF7;border-radius:99px;padding:5px 13px;font-size:12px;cursor:pointer;color:var(--ink)}
+  .hint{font-size:10.5px;color:var(--ink2)}
+  #send{width:38px;height:38px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:17px;cursor:pointer;flex:0 0 38px}
+  #send:disabled{opacity:.45}
+  #qbar{display:none;flex-direction:column;gap:4px;margin-top:4px}
+  .qitem{display:flex;gap:8px;align-items:center;font-size:11.5px;background:#FBFAF7;border:1px solid var(--line);border-radius:9px;padding:4px 9px}
+  .qitem .m{font-family:var(--mono);color:var(--accent2);white-space:nowrap;font-size:10.5px}
+  .qitem .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}
+  /* ---------- シート（セッション/実行ログ・モバイル全画面） ---------- */
+  .sheet{position:fixed;inset:0;z-index:30;background:var(--bg);display:none;overflow:auto;padding:14px 14px calc(150px + var(--sat))}
+  .sheet.open{display:block}
+  .sheet .sh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .sheet .sh b{font-family:var(--serif);font-size:19px}
+  table.items{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  table.items td,table.items th{border-top:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  table.items th{color:var(--ink2);font-weight:600;font-size:11px;border-top:0;background:#FBFAF7}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
   .dot.ok{background:var(--ok)} .dot.dead{background:var(--err)} .dot.unknown{background:var(--queued)}
-  a{color:var(--accent2)}
-  .locked{color:var(--ink2);font-size:13px;text-align:center;padding:26px 10px}
-  .ribbon{position:fixed;top:12px;right:-34px;transform:rotate(38deg);background:#FFE08A;color:#7a5d00;font-size:11px;font-weight:700;padding:4px 40px;z-index:40;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  /* ---------- モーダル/トースト/バナー ---------- */
+  #modal{display:none;position:fixed;inset:0;background:rgba(31,29,26,.45);z-index:50;align-items:flex-end;justify-content:center}
+  #modal.open{display:flex}
+  #modal .mcard{background:var(--card);border-radius:20px 20px 0 0;max-width:520px;width:100%;padding:22px 20px calc(20px + var(--sat));border:1px solid var(--line)}
+  @media(min-width:560px){#modal{align-items:center}#modal .mcard{border-radius:20px}}
+  #modal h2{font-family:var(--serif);margin:0 0 4px;font-size:20px}
+  #modal label{display:block;font-size:12px;color:var(--ink2);margin:10px 0 3px}
+  #modal input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;font-family:var(--mono)}
+  #toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+  .tmsg{background:var(--ink);color:#F5F3EE;border-radius:99px;padding:8px 18px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:fade .3s;max-width:88vw;text-align:center}
+  @keyframes fade{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
+  #banner{display:none;margin:10px 14px 0;padding:10px 14px;border-radius:12px;font-size:12.5px;border:1px solid #F3C89D;background:#FDEEDC;color:#9A4E12}
+  #sharebox{display:none;margin:10px 0 0;font-size:12px;color:var(--ink2)}
+  #sharebox input{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-family:var(--mono);font-size:11px;margin:6px 0}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .stat .v{font-family:var(--serif);font-size:21px;font-weight:700;line-height:1.2}
+  .stat .l{font-size:10.5px;color:var(--ink2)}
 </style>
 </head>
 <body>
 <div id="toast"></div>
-<div class="ribbon" id="ribbon" style="display:none">デモ表示中</div>
-<div class="wrap">
-  <header>
-    <h1>web2api <em>console</em></h1>
-    <span class="pill" id="modePill">公開モード</span>
-    <span class="pill" id="repoPill"></span>
-    <span class="spacer"></span>
-    <button class="act" id="unlockBtn">操作者ロック解除</button>
-    <button class="act" id="shareBtn" style="display:none">共有リンク</button>
-  </header>
+<div id="banner"></div>
+<header>
+  <h1>web2api <em>console</em></h1>
+  <span class="pill" id="modePill">公開モード</span>
+  <span class="pill" id="repoPill"></span>
+  <span class="spacer"></span>
+  <button class="hbtn" id="sessionsBtn">セッション</button>
+  <button class="hbtn" id="runsBtn">実行ログ</button>
+  <button class="hbtn" id="shareBtn" style="display:none">共有</button>
+  <button class="hbtn" id="unlockBtn">ロック解除</button>
+</header>
 
-  <div class="stats" id="stats"></div>
-  <div class="tabs">
-    <button class="tab active" data-tab="batches">バッチ</button>
-    <button class="tab" data-tab="sessions">セッション</button>
-    <button class="tab" data-tab="runs">実行ログ</button>
-  </div>
-  <div id="view"></div>
+<div id="main">
+  <div id="chat"></div>
 </div>
+
+<div id="sessionsSheet" class="sheet"><div class="sh"><button class="hbtn" data-close>← 閉じる</button><b>セッション状態</b><span class="spacer"></span><button class="hbtn" id="probeNow" style="display:none">今すぐプローブ</button></div><div id="sessionsBody"></div></div>
+<div id="runsSheet" class="sheet"><div class="sh"><button class="hbtn" data-close>← 閉じる</button><b>ワークフロー実行ログ</b></div><div id="runsBody"></div></div>
 
 <div id="composer">
   <div class="box">
     <div class="chips" id="modelChips"></div>
-    <textarea id="input" rows="2" placeholder="命令を書く（例: Claude に棒人間の絵を描かせて）…"></textarea>
-    <div id="queue"></div>
+    <textarea id="input" rows="2" placeholder="命令を書く…（例: Claude に棒人間の絵を描かせて）"></textarea>
+    <div id="qbar"></div>
     <div class="cfoot">
-      <button class="act" id="queueBtn">キューに追加</button>
-      <button class="act" id="jsonBtn">JSON 直接指定</button>
-      <span class="hint" id="composerHint">⌘/Ctrl + Enter で一括送信（GitHub Actions 経由）</span>
+      <button class="cbtn" id="queueBtn">＋キュー</button>
+      <button class="cbtn" id="jsonBtn">JSON</button>
+      <span class="hint">⌘/Ctrl+Enter</span>
       <span class="spacer"></span>
       <button id="send" title="送信">↑</button>
     </div>
@@ -120,74 +156,55 @@
 <div id="modal">
   <div class="mcard">
     <h2>操作者ロック解除</h2>
-    <div style="font-size:12px;color:var(--ink2)">トークン・鍵はこのブラウザの localStorage にのみ保存され、GitHub API へ直接送信されます。サーバを介しません。</div>
-    <label>リポジトリ（owner/name）</label>
-    <input id="fRepo" placeholder="Au12jp/web2api-ck">
-    <label>GitHub トークン（repo / workflow スコープ）</label>
-    <input id="fToken" type="password" placeholder="ghp_... / github_pat_...">
-    <label>STATE_PASSPHRASE</label>
-    <input id="fPass" type="password" placeholder="ops ブランチ復号鍵">
+    <div style="font-size:12px;color:var(--ink2)">トークン・鍵はこのブラウザの localStorage にのみ保存され、GitHub API へ直接送られます。入力は最初の一度だけ — あとは「共有リンク」を開くだけで誰でもそのまま使えます。</div>
+    <label>リポジトリ（owner/name）</label><input id="fRepo" placeholder="Au12jp/web2api-ck" autocomplete="off">
+    <label>GitHub トークン（repo / workflow スコープ）</label><input id="fToken" type="password" placeholder="ghp_... / github_pat_..." autocomplete="off">
+    <label>STATE_PASSPHRASE</label><input id="fPass" type="password" placeholder="ops ブランチ復号鍵" autocomplete="off">
     <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-      <button class="act" id="lockCancel">キャンセル</button>
-      <button class="act primary" id="lockOk">保存して解除</button>
+      <button class="hbtn" id="lockCancel">キャンセル</button>
+      <button class="hbtn" id="lockOk" style="background:var(--accent);border-color:var(--accent);color:#fff">保存して解除</button>
+    </div>
+    <div id="sharebox">
+      <b>共有リンク（受け取った人は何も入力せずに使えます）</b>
+      <input id="shareLink" readonly onclick="this.select()">
+      <div style="display:flex;gap:8px">
+        <button class="hbtn" id="copyLink">コピー</button>
+        <button class="hbtn" id="nativeShare">共有シートで送る</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
 'use strict';
-/* ================= 設定・状態 ================= */
-const PUBLIC_REPO = 'Au12jp/web2api-ck-dashboard';           // 公開 Pages リポジトリ
+/* ================= 基本 ================= */
+const PUBLIC_REPO = 'Au12jp/web2api-ck-dashboard';
 const MODELS = ['claude-sonnet-4.5','claude-opus-4.5','claude-haiku-4.5','kimi-k2','kimi-latest'];
-const SAMPLE = {
-  demo: true,
-  index: [
-    {batch_id:'sample-done-01', state:'done', total:2, ok:2, failed:0, finishedAt:new Date(Date.now()-3600e3).toISOString()},
-    {batch_id:'sample-partial', state:'done_partial', total:3, ok:2, failed:1, finishedAt:new Date(Date.now()-1200e3).toISOString()},
-    {batch_id:'sample-queued', state:'queued', total:1, ok:0, failed:0, finishedAt:new Date(Date.now()-60e3).toISOString()},
-  ],
-  detail: {
-    'sample-done-01': {items:[
-      {id:'demo-1', model:'claude-sonnet-4.5', ok:true, content:'pong', latencyMs:22800, attempts:1},
-      {id:'demo-2', model:'kimi-k2', ok:true, content:'pong', latencyMs:31500, attempts:1},
-    ]},
-    'sample-partial': {items:[
-      {id:'demo-3', model:'claude-opus-4.5', ok:true, content:'(長文の回答)', latencyMs:88400, attempts:1},
-      {id:'demo-4', model:'kimi-k2', ok:false, code:'CHALLENGE', error:'challenge page detected', attempts:3},
-      {id:'demo-5', model:'claude-haiku-4.5', ok:true, content:'pong', latencyMs:19400, attempts:1},
-    ]},
-    'sample-queued': {items:[]},
-  },
-  sessions: {publishedAt:new Date().toISOString(), sessions:[
-    {service:'claude', account:'default', savedAt:new Date(Date.now()-86400e3).toISOString(), probeOk:true, cookieCount:43, originCount:2},
-    {service:'kimi', account:'default', savedAt:new Date(Date.now()-86400e3).toISOString(), probeOk:true, cookieCount:38, originCount:1},
-  ]},
-  probe: {checkedAt:new Date().toISOString(), total:2, okCount:2, entries:[
-    {label:'claude__default', ok:true}, {label:'kimi__default', ok:true},
-  ]},
-};
-let cfg = loadCfg();
-let tab = 'batches';
-let index = [];            // バッチ一覧（新しい順）
-let expanded = new Set();
-let queue = [];            // 送信キュー [{model, content}]
-let modelSel = MODELS[0];
-let activePolls = new Map();
-
-function loadCfg(){
-  try { const raw = localStorage.getItem('w2ckdash'); if (raw) return JSON.parse(raw); } catch {}
-  if (location.hash.startsWith('#k=')){
-    try { return JSON.parse(atob(decodeURIComponent(location.hash.slice(3)))); } catch {}
-  }
-  return null;
-}
-function saveCfg(){ localStorage.setItem('w2ckdash', JSON.stringify(cfg)); }
+const MODEL_SVC = m => m.startsWith('kimi')||m.startsWith('moonshot') ? 'kimi' : 'claude';
 const $ = s => document.querySelector(s);
-function toast(msg){ const d=document.createElement('div'); d.className='tmsg'; d.textContent=msg; $('#toast').appendChild(d); setTimeout(()=>d.remove(), 3800); }
+const te = new TextEncoder(), td = new TextDecoder();
+function toast(msg){ const d=document.createElement('div'); d.className='tmsg'; d.textContent=msg; $('#toast').appendChild(d); setTimeout(()=>d.remove(), 4000); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function rel(iso){ const s=(Date.now()-new Date(iso).getTime())/1000; if(s<60)return 'たった今'; if(s<3600)return Math.floor(s/60)+' 分前'; if(s<86400)return Math.floor(s/3600)+' 時間前'; return Math.floor(s/86400)+' 日前'; }
+function rel(iso){ if(!iso)return '—'; const s=(Date.now()-new Date(iso).getTime())/1000; if(s<60)return 'たった今'; if(s<3600)return Math.floor(s/60)+' 分前'; if(s<86400)return Math.floor(s/3600)+' 時間前'; return Math.floor(s/86400)+' 日前'; }
+function b64u(str){ return btoa(String.fromCharCode(...te.encode(str))); }        // unicode安全 base64
+function ub64u(b64){ const bin=atob(b64); return td.decode(new Uint8Array([...bin].map(c=>c.charCodeAt(0)))); }
+function b64bytes(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000)); return btoa(s); }
+function bytesFromB64(b64){ const bin=atob(String(b64).replace(/\n/g,'')); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
-/* ================= GitHub API（ロック解除時のみ使用） ================= */
+/* ================= 設定（ゼロ入力: #k= フラグメント or localStorage） ================= */
+function loadCfg(){
+  let cfg = null;
+  if (location.hash.startsWith('#k=')){
+    try { cfg = JSON.parse(ub64u(location.hash.slice(3))); history.replaceState(null,'',location.pathname+location.search); } catch {}
+  }
+  if (!cfg){ try { const raw=localStorage.getItem('w2ckdash'); if(raw) cfg=JSON.parse(raw); } catch {} }
+  return cfg;
+}
+function saveCfg(){ if(cfg) localStorage.setItem('w2ckdash', JSON.stringify(cfg)); }
+let cfg = loadCfg();
+
+/* ================= GitHub API ================= */
 async function ghApi(path, opts={}){
   if(!cfg||!cfg.token) throw new Error('ロック解除が必要です');
   const res = await fetch('https://api.github.com'+path, {
@@ -195,358 +212,369 @@ async function ghApi(path, opts={}){
     headers:{Authorization:'Bearer '+cfg.token, Accept:'application/vnd.github+json', 'Content-Type':'application/json', 'X-GitHub-Api-Version':'2022-11-28'},
     body: opts.body?JSON.stringify(opts.body):undefined,
   });
-  if(res.status===404 && opts.method!=='PUT') return null;
-  const text = await res.text();
-  let data=null; try{ data=JSON.parse(text); }catch{}
-  if(!res.ok) throw new Error(`${opts.method||'GET'} ${path} -> ${res.status} ${(data&&data.message)||text.slice(0,160)}`);
+  if(res.status===404 && (opts.method||'GET')!=='PUT') return null;
+  const text = await res.text(); let data=null; try{ data=JSON.parse(text); }catch{}
+  if(!res.ok) throw new Error(((data&&data.message)||text||res.status).toString().slice(0,220));
   return data;
 }
-function b64ToBytes(b64){
-  const bin = atob(String(b64).replace(/\n/g,''));
-  const out = new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
-  return out;
-}
-function bytesToB64(bytes){
-  let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000));
-  return btoa(s);
-}
-async function getOpsFile(path){ // gha-ops ブランチのファイル → Uint8Array
-  const d = await ghApi(`/repos/${cfg.repo}/contents/${path}?ref=gha-ops`);
-  if(!d||!d.content) return null;
-  return b64ToBytes(d.content);
-}
+async function getOpsFile(path){ const d=await ghApi(`/repos/${cfg.repo}/contents/${path}?ref=gha-ops`); return (d&&d.content)?bytesFromB64(d.content):null; }
 async function putOpsFile(path, bytes, message){
   const cur = await ghApi(`/repos/${cfg.repo}/contents/${path}?ref=gha-ops`);
-  await ghApi(`/repos/${cfg.repo}/contents/${path}`, {method:'PUT', body:{
-    message, branch:'gha-ops', content: bytesToB64(bytes), ...(cur&&cur.sha?{sha:cur.sha}:{}),
-  }});
+  await ghApi(`/repos/${cfg.repo}/contents/${path}`, {method:'PUT', body:{message, branch:'gha-ops', content:b64bytes(bytes), ...(cur&&cur.sha?{sha:cur.sha}:{})}});
 }
 
 /* ================= WebCrypto（w2ckp1 互換） ================= */
-const te = new TextEncoder(), td = new TextDecoder();
 async function pbkdf2Key(pass, salt){
   const base = await crypto.subtle.importKey('raw', te.encode(pass), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({name:'PBKDF2', hash:'SHA-256', salt, iterations:200000}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
 }
 async function encryptWckp1(pass, bytes){
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await pbkdf2Key(pass, salt);
-  const aad = te.encode(`w2ckp1:${bytesToB64(salt)}:${bytesToB64(iv)}`);
-  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:aad, tagLength:128}, key, bytes);
-  const full = new Uint8Array(ct);
-  const body = full.slice(0, full.length-16), tag = full.slice(full.length-16);
-  return `w2ckp1$${bytesToB64(salt)}$${bytesToB64(iv)}$${bytesToB64(tag)}$${bytesToB64(body)}`;
+  const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await pbkdf2Key(pass,salt);
+  const aad=te.encode(`w2ckp1:${b64bytes(salt)}:${b64bytes(iv)}`);
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:aad, tagLength:128}, key, bytes);
+  const full=new Uint8Array(ct);
+  return `w2ckp1$${b64bytes(salt)}$${b64bytes(iv)}$${b64bytes(full.slice(full.length-16))}$${b64bytes(full.slice(0,full.length-16))}`;
 }
 async function decryptWckp1(pass, str){
-  const p = String(str).trim().split('$');
-  if(p.length!==5||p[0]!=='w2ckp1') throw new Error('w2ckp1 形式ではありません');
-  const key = await pbkdf2Key(pass, b64ToBytes(p[1]));
-  const aad = te.encode(`w2ckp1:${p[1]}:${p[2]}`);
-  const body = b64ToBytes(p[4]), tag = b64ToBytes(p[3]);
-  const full = new Uint8Array(body.length+tag.length); full.set(body); full.set(tag, body.length);
-  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64ToBytes(p[2]), additionalData:aad, tagLength:128}, key, full);
-  return new Uint8Array(pt);
+  const p=String(str).trim().split('$'); if(p.length!==5||p[0]!=='w2ckp1') throw new Error('w2ckp1 形式ではありません');
+  const key=await pbkdf2Key(pass, bytesFromB64(p[1]));
+  const body=bytesFromB64(p[4]), tag=bytesFromB64(p[3]);
+  const full=new Uint8Array(body.length+tag.length); full.set(body); full.set(tag, body.length);
+  return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:bytesFromB64(p[2]), additionalData:te.encode(`w2ckp1:${p[1]}:${p[2]}`), tagLength:128}, key, full));
 }
-async function sha256Hex(str){
-  const h = await crypto.subtle.digest('SHA-256', te.encode(str));
-  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-function canonicalOf(requests){ return JSON.stringify(requests.map(r=>({id:r.id??null, model:r.model, messages:r.messages}))); }
-async function batchIdOf(requests){ return (await sha256Hex(canonicalOf(requests))).slice(0,16); }
+async function sha256Hex(str){ return [...new Uint8Array(await crypto.subtle.digest('SHA-256', te.encode(str)))].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+const canonicalOf = reqs => JSON.stringify(reqs.map(r=>({id:r.id??null, model:r.model, messages:r.messages})));
+const batchIdOf = async reqs => (await sha256Hex(canonicalOf(reqs))).slice(0,16);
 </script>
 <script>
 'use strict';
-/* ================= データ取得 ================= */
-async function fetchPublic(path){
-  const urls = [`status/${path}`, `https://raw.githubusercontent.com/${PUBLIC_REPO}/main/status/${path}`];
-  for(const u of urls){
-    try{ const r = await fetch(u, {cache:'no-store'}); if(r.ok) return await r.json(); }catch{}
+/* ================= マークダウン（最小・安全レンダラ） ================= */
+function md(src){
+  const code=[]; let s=String(src??'').replace(/\r\n?/g,'\n');
+  s=s.replace(/```(\w*)\n?([\s\S]*?)```/g,(m,l,c)=>{code.push({l,c:c.replace(/\n$/,'')});return `${code.length-1}`;});
+  s=s.replace(/`([^`\n]+)`/g,(m,c)=>`<code>${esc(c)}</code>`);
+  s=esc(s);
+  s=s.replace(/^###### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/^# (.*)$/gm,'<h2>$1</h2>').replace(/^### (.*)$/gm,'<h3>$1</h3>');
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<i>$2</i>');
+  s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const lines=s.split('\n'); let html='', inUl=false, inOl=false;
+  const close=()=>{ if(inUl){html+='</ul>';inUl=false} if(inOl){html+='</ol>';inOl=false} };
+  for(const ln of lines){
+    if(/^<h[23]>/.test(ln)){ close(); html+=ln; continue; }
+    const u=ln.match(/^\s*[-•] (.*)$/);
+    if(u){ if(!inUl){close();html+='<ul>';inUl=true} html+=`<li>${u[1]}</li>`; continue; }
+    const o=ln.match(/^\s*\d+[.)] (.*)$/);
+    if(o){ if(!inOl){close();html+='<ol>';inOl=true} html+=`<li>${o[1]}</li>`; continue; }
+    if(ln.trim()===''){ close(); continue; }
+    close(); html+=`<div>${ln}</div>`;
   }
-  return null;
-}
-async function refreshIndex(){
-  if(cfg && cfg.token){
-    try{
-      const raw = await getOpsFile('status/index.json');
-      if(raw){ index = JSON.parse(td.decode(raw)); renderAll(); return; }
-    }catch(e){ console.warn('private index fallback:', e.message); }
-  }
-  const pub = await fetchPublic('index.json');
-  if(pub){ index = pub; $('#ribbon').style.display='none'; }
-  else { index = SAMPLE.index; $('#ribbon').style.display='block'; }
-  renderAll();
-}
-async function loadSessions(){
-  if(cfg && cfg.token){ try{ const raw = await getOpsFile('status/sessions.json'); if(raw) return JSON.parse(td.decode(raw)); }catch{} }
-  return (await fetchPublic('sessions.json')) || SAMPLE.sessions;
-}
-async function loadProbe(){
-  if(cfg && cfg.token){ try{ const raw = await getOpsFile('status/probe-latest.json'); if(raw) return JSON.parse(td.decode(raw)); }catch{} }
-  return (await fetchPublic('probe-latest.json')) || SAMPLE.probe;
+  close();
+  return html.replace(/(\d+)/g,(m,i)=>{const c=code[+i];return `<pre><code class="lang-${esc(c.l)}">${esc(c.c)}</code></pre>`;});
 }
 
-/* ================= レンダリング ================= */
-function renderAll(){ renderStats(); renderView(); }
-function renderStats(){
-  const done = index.filter(b=>b.state==='done').length;
-  const partial = index.filter(b=>b.state==='done_partial').length;
-  const rate = (done+partial)? Math.round(100*(done+0.5*partial)/index.length) : null;
-  $('#stats').innerHTML = `
-    <div class="stat"><div class="v">${index.length}</div><div class="l">総バッチ</div></div>
-    <div class="stat"><div class="v" style="color:var(--ok)">${done}</div><div class="l">成功</div></div>
-    <div class="stat"><div class="v" style="color:var(--warn)">${partial}</div><div class="l">部分成功</div></div>
-    <div class="stat"><div class="v">${rate==null?'—':rate+'%'}</div><div class="l">成功率</div></div>`;
-}
-async function renderView(){
-  if(tab==='batches') return renderBatches();
-  if(tab==='sessions') return renderSessions();
-  return renderRuns();
-}
-function renderBatches(){
-  const el = $('#view');
-  if(!index.length){ el.innerHTML = `<div class="locked">まだバッチがありません。下の入力欄から最初の命令を送ってください。</div>`; return; }
-  el.innerHTML = index.map(b=>`
-    <div class="card">
-      <div class="top">
-        <span class="bid">#${esc(b.batch_id)}</span>
-        <span class="badge b-${esc(b.state)}">${esc(b.state)}</span>
-        <span style="font-size:12px;color:var(--ink2)">${b.ok??'—'}/${b.total??'—'} ok</span>
-        <span class="time">${b.finishedAt?rel(b.finishedAt):''}</span>
-        <span class="spacer"></span>
-        <button class="act" data-expand="${esc(b.batch_id)}">${expanded.has(b.batch_id)?'折りたたむ':'詳細'}</button>
-      </div>
-      <div data-body="${esc(b.batch_id)}" style="display:${expanded.has(b.batch_id)?'block':'none'}">読み込み中…</div>
-    </div>`).join('');
-  el.querySelectorAll('[data-expand]').forEach(btn=>btn.onclick=()=>{
-    const id = btn.dataset.expand;
-    expanded.has(id)?expanded.delete(id):expanded.add(id);
-    renderBatches();
-  });
-  el.querySelectorAll('[data-body]').forEach(div=>{
-    if(div.style.display!=='none') loadBatchDetail(div.dataset.body, div);
-  });
-}
-async function loadBatchDetail(id, div){
-  let items = null;
-  if(SAMPLE.detail[id]) items = SAMPLE.detail[id].items;
-  else if(cfg && cfg.token){
-    try{
-      const raw = await getOpsFile(`results/${id}.jsonl.crypt`);
-      if(raw) items = td.decode(raw).split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(Boolean);
-    }catch(e){ div.innerHTML = `<div style="color:var(--err);font-size:12px">${esc(e.message)}</div>`; return; }
+/* ================= スレッド（永続化チャット） ================= */
+const store = {
+  load(){ try{ return JSON.parse(localStorage.getItem('w2ckdash.threads')||'[]'); }catch{ return []; } },
+  save(t){ try{ localStorage.setItem('w2ckdash.threads', JSON.stringify(t.slice(-200))); }catch{} },
+};
+let turns = store.load();
+function saveTurns(){ store.save(turns); }
+function turnOf(id){ return turns.find(t=>t.id===id); }
+
+/* ---------- レンダリング ---------- */
+function avClass(model){ const s=MODEL_SVC(model); return s==='kimi'?'kimi':'claude'; }
+function svcName(model){ return MODEL_SVC(model)==='kimi'?'Kimi':'Claude'; }
+
+function renderChat(){
+  const c=$('#chat');
+  if(!turns.length){
+    c.innerHTML=`<div id="hero">
+      <p class="t">何をしましょうか。</p>
+      <p class="s">${cfg&&cfg.token ? '命令はバッチとして GitHub Actions 経由で実行され、ここに応答が届きます。' : '公開モード: 履歴の閲覧のみ。ロック解除（または鍵付きリンクを開く）と命令できます。'}</p>
+      <div class="sugg">
+        <button data-say="Claude に「棒人間が勝利している絵」を SVG で描かせて">SVG アートを描く</button>
+        <button data-say="「週次レポートのテンプレート」を日本語で箇条書きして">レポート雛形</button>
+        <button data-say="「面白い短編小説の冒頭」を300字で書いて">小説の冒頭</button>
+        <button data-say="Kimi に「量子コンピュータを小学生に説明して」と頼んで">量子コンピュータ解説</button>
+      </div></div>`;
+    c.querySelectorAll('[data-say]').forEach(b=>b.onclick=()=>{ $('#input').value=b.dataset.say; $('#input').focus(); });
+    return;
   }
-  if(!items){ div.innerHTML = `<div style="font-size:12px;color:var(--ink2)">結果はまだありません（未実行か、実行中）。</div>`; return; }
-  const canResume = cfg && cfg.token && items.some(i=>!i.ok);
-  div.innerHTML = `
-    <table class="items">
-      <tr><th>id</th><th>model</th><th>結果</th><th>latency</th><th>code</th></tr>
-      ${items.map((it,i)=>`<tr>
-        <td>${esc(it.id)}</td><td style="font-family:var(--mono);font-size:11px">${esc(it.model)}</td>
-        <td>${it.ok?'✅':'❌'}</td><td>${it.latencyMs?Math.round(it.latencyMs/1000)+'s':'—'}</td>
-        <td>${esc(it.code||'')}${it.error?`<div style="color:var(--err);font-size:11px">${esc(String(it.error).slice(0,120))}</div>`:''}</td>
-      </tr>${it.content?`<tr><td colspan="5"><pre class="content">${esc(it.content)}</pre></td></tr>`:''}`).join('')}
-    </table>
-    ${canResume?`<div class="rowbtns"><button class="act" data-resume="${esc(id)}">未処理を再開（resume）</button></div>`:''}`;
-  const rb = div.querySelector('[data-resume]');
-  if(rb) rb.onclick = ()=>resumeBatch(id);
+  c.innerHTML='';
+  for(const t of turns) c.appendChild(turnNode(t));
 }
-async function renderSessions(){
-  const el = $('#view');
-  const [sessions, probe] = await Promise.all([loadSessions(), loadProbe()]);
-  el.innerHTML = `
-    <div class="card">
-      <div class="top"><b>セッション状態</b><span class="time">probe: ${probe.checkedAt?rel(probe.checkedAt):'—'}（${probe.okCount}/${probe.total} 正常）</span>
-      ${cfg&&cfg.token?`<span class="spacer"></span><button class="act" id="probeNow">今すぐプローブ</button>`:''}</div>
-      <table class="items">
-        <tr><th>状態</th><th>サービス</th><th>アカウント</th><th>保存日時</th><th>cookies</th></tr>
-        ${(sessions.sessions||[]).map(s=>`<tr>
-          <td><span class="dot ${s.probeOk===true?'ok':(s.probeOk===false?'dead':'unknown')}"></span>${s.probeOk===true?'正常':(s.probeOk===false?'失敗':'未検査')}</td>
-          <td>${esc(s.service)}</td><td>${esc(s.account)}</td>
-          <td>${s.savedAt?rel(s.savedAt):'—'}</td><td>${s.cookieCount??'—'}</td>
-        </tr>`).join('') || '<tr><td colspan="5" style="color:var(--ink2)">バンドル未配置</td></tr>'}
-      </table>
-      <div style="font-size:11px;color:var(--ink2);margin-top:6px">失敗が続く場合: ローカルで <code>npm run login:&lt;service&gt;</code> → <code>pack-session --push</code> で再封入。復元は <code>ops-commit restore-state</code>。</div>
-    </div>
-    <div class="card"><div class="top"><b>プローブ履歴（最新）</b></div>
-      <pre class="content">${esc(JSON.stringify(probe.entries||[], null, 2))}</pre>
-    </div>`;
-  const pb = $('#probeNow');
-  if(pb) pb.onclick = async ()=>{
-    pb.disabled = true;
-    try{ await ghApi(`/repos/${cfg.repo}/actions/workflows/probe.yml/dispatches`, {method:'POST', body:{ref:'main'}}); toast('プローブ ワークフローを起動しました'); }
-    catch(e){ toast('起動失敗: '+e.message); }
-    pb.disabled = false;
+function turnNode(t){
+  const wrap=document.createElement('div');
+  const uTxt = t.requests.map(r=>r.content).join('\n——（複数リクエスト）——\n');
+  let inner=`<div class="msg user"><div class="av u">あ</div><div class="body"><div class="meta"><b>あなた</b><span>${rel(t.ts)}</span></div>
+    <div class="bub"><div class="txt">${esc(uTxt)}</div></div></div></div>`;
+  t.responses.forEach((r,i)=>{
+    inner+=`<div class="msg"><div class="av ${avClass(r.model)}">${svcName(r.model)[0]}</div><div class="body">
+      <div class="meta"><b>${esc(r.model)}</b> <span class="badge b-${esc(r.state)}">${esc(r.state)}</span>${r.latencyMs?`<span>${Math.round(r.latencyMs/1000)}s</span>`:''}${r.attempts>1?`<span>retry×${r.attempts-1}</span>`:''}<span>${rel(t.ts)}</span></div>
+      <div class="bub" id="bub-${t.id}-${i}">${respInner(r)}</div>
+      <div class="mfoot">${r.state==='done'||r.state==='done_partial'?`<button class="sbtn" data-copy="${t.id}:${i}">コピー</button><button class="sbtn" data-regen="${t.id}:${i}">再生成</button>`:''}</div>
+    </div></div>`;
+  });
+  wrap.innerHTML=inner;
+  wrap.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{ const [tid,i]=b.dataset.copy.split(':'); navigator.clipboard.writeText(turnOf(tid).responses[+i].content||'').then(()=>toast('コピーしました')); });
+  wrap.querySelectorAll('[data-regen]').forEach(b=>b.onclick=()=>{ const [tid,i]=b.dataset.copy.split(':'); const t=turnOf(tid); const r=t.requests[+i]; dispatchAsTurn([{id:uid(), model:r.model, messages:r.messages}], r.content); });
+  return wrap;
+}
+function respInner(r){
+  if(r.state==='error'||r.state==='done_partial'&&r.error&&!r.content) return `<div class="txt" style="color:var(--err)">${esc(r.error||'失敗')}</div>`;
+  if(r.state==='queued'||r.state==='dispatched'||r.state==='running') return `<div class="prog"><span class="spin"></span>${r.state==='running'?'実行中…':'GitHub Actions キュー待ち…'}</div>`;
+  if(r.streaming) return `<div class="txt">${md(r.shown)}<span class="cursor"></span></div>`;
+  return `<div class="txt">${md(r.content||'')}</div>`;
+}
+function updateBubbles(t){ // 応答状態が変わったバブルだけ更新
+  t.responses.forEach((r,i)=>{
+    const el=document.getElementById(`bub-${t.id}-${i}`);
+    if(el) el.innerHTML=respInner(r);
+  });
+}
+
+/* ---------- タイプライタ（ストリーミング風） ---------- */
+const writers=new Map();
+function streamIn(t, idx, full){
+  const key=t.id+':'+idx;
+  if(writers.has(key)) return;
+  const r=t.responses[idx];
+  r.streaming=true; r.shown=''; writers.set(key,true);
+  const step=()=>{
+    const remain=full.length-r.shown.length;
+    if(remain<=0){ r.streaming=false; r.shown=full; writers.delete(key); saveTurns(); updateBubbles(t); return; }
+    const n=Math.max(2, Math.round(remain/18));
+    r.shown=full.slice(0, r.shown.length+n);
+    updateBubbles(t);
+    setTimeout(step, 24);
   };
-}
-async function renderRuns(){
-  const el = $('#view');
-  if(!cfg||!cfg.token){ el.innerHTML = `<div class="locked">実行ログは操作者ロック解除後に表示されます。</div>`; return; }
-  try{
-    const d = await ghApi(`/repos/${cfg.repo}/actions/runs?per_page=15`);
-    el.innerHTML = `<div class="card"><div class="top"><b>直近のワークフロー実行</b></div>
-      <table class="items">
-        <tr><th>実行</th><th>ワークフロー</th><th>状態</th><th>開始</th><th>link</th></tr>
-        ${(d.workflow_runs||[]).map(r=>`<tr>
-          <td style="font-family:var(--mono);font-size:11px">${esc(r.head_branch)}</td>
-          <td>${esc(r.name)}</td>
-          <td>${r.conclusion?esc(r.conclusion):'<span class="badge b-running">running</span>'}</td>
-          <td>${rel(r.created_at)}</td>
-          <td><a href="${esc(r.html_url)}" target="_blank" rel="noopener">open</a></td>
-        </tr>`).join('')}
-      </table></div>`;
-  }catch(e){ el.innerHTML = `<div class="locked">${esc(e.message)}</div>`; }
+  step();
 }
 
-/* ================= ディスパッチ（命令） ================= */
-async function dispatchRequests(requests){
-  if(!cfg||!cfg.token) throw new Error('操作者ロック解除が必要です');
-  if(!cfg.pass) throw new Error('STATE_PASSPHRASE が未設定です');
-  const id = await batchIdOf(requests);
-  // 冪等: 完了済みなら結果だけ読む
+/* ================= ディスパッチ（命令→バッチ） ================= */
+let cooldown=false;
+async function dispatchAsTurn(requests, userText){
+  if(!cfg||!cfg.token){ toast('ロック解除が必要です（鍵付きリンクを開くか、右上から解除）'); openLock(); return null; }
+  if(!cfg.pass){ toast('STATE_PASSPHRASE が未設定です'); openLock(); return null; }
+  if(cooldown){ toast('少し待ってから再送信してください'); return null; }
+  const t={ id:uid(), ts:Date.now(), requests, responses:[], batchId:null };
+  requests.forEach(r=>t.responses.push({model:r.model, state:'queued'}));
+  turns.push(t); saveTurns(); renderChat(); scrollBottom();
   try{
-    const stRaw = await getOpsFile(`status/${id}.json`);
-    if(stRaw){ const st = JSON.parse(td.decode(stRaw));
-      if(['done','done_partial'].includes(st.state)){ toast(`冪等ヒット: #${id} は既に ${st.state}`); expanded.add(id); await refreshIndex(); return id; }
+    const batchId = await dispatchCore(requests, t);
+    t.batchId=batchId;
+    t.responses.forEach(r=>{ if(r.state==='queued') r.state='dispatched'; });
+    saveTurns(); updateBubbles(t);
+    pollTurn(t);
+    cooldown=true; setTimeout(()=>cooldown=false, 3000);
+    return t;
+  }catch(e){
+    const msg=e.message||String(e);
+    t.responses.forEach(r=>{ r.state='error'; r.error=msg; });
+    saveTurns(); updateBubbles(t);
+    if(/payments|spending limit/i.test(msg)) showBillingBanner();
+    else toast('送信失敗: '+msg.slice(0,140));
+    return null;
+  }
+}
+async function dispatchCore(requests, t){
+  const id = await batchIdOf(requests);
+  try{
+    const stRaw=await getOpsFile(`status/${id}.json`);
+    if(stRaw){ const st=JSON.parse(td.decode(stRaw));
+      if(['done','done_partial'].includes(st.state)){ toast('冪等ヒット: 既存の結果を表示します'); await hydrateResults(t, id); return id; }
     }
   }catch{}
-  const enc = await encryptWckp1(cfg.pass, te.encode(JSON.stringify(requests)));
+  const enc=await encryptWckp1(cfg.pass, te.encode(JSON.stringify(requests)));
   await putOpsFile(`payloads/${id}.json.crypt`, te.encode(enc+'\n'), `web: dispatch ${id} (${requests.length} req)`);
   await putOpsFile(`status/${id}.json`, te.encode(JSON.stringify({batch_id:id, state:'queued', total:requests.length, ok:0, failed:0, queuedAt:new Date().toISOString(), source:'dashboard'}, null, 2)), `web: queued ${id}`);
-  await ghApi(`/repos/${cfg.repo}/actions/workflows/batch.yml/dispatches`, {method:'POST', body:{ref:'main', inputs:{batch_id:id, request_count:String(requests.length)}}});
-  toast(`バッチ #${id} を GitHub Actions に送りました`);
-  expanded.add(id);
-  await refreshIndex();
-  pollBatch(id);
+  try{
+    await ghApi(`/repos/${cfg.repo}/actions/workflows/batch.yml/dispatches`, {method:'POST', body:{ref:'main', inputs:{batch_id:id, request_count:String(requests.length)}}});
+  }catch(e){
+    // 課金ブロック等は here で検出して上位へ
+    if(/payments|spending limit/i.test(e.message||'')) e.message='GitHub アカウントの課金設定がブロックしています: '+e.message;
+    throw e;
+  }
   return id;
 }
-function pollBatch(id){
-  if(activePolls.has(id)) return;
-  activePolls.set(id, true);
-  (async()=>{
-    for(let i=0;i<90;i++){
-      await new Promise(r=>setTimeout(r, 8000));
-      try{
-        const raw = await getOpsFile(`status/${id}.json`);
-        if(!raw) continue;
-        const st = JSON.parse(td.decode(raw));
-        await refreshIndexSilent();
-        if(['done','done_partial','error'].includes(st.state)){
-          toast(`バッチ #${id}: ${st.state}（${st.ok}/${st.total}）`);
-          await refreshIndex(); renderView();
-          activePolls.delete(id);
-          return;
-        }
-      }catch{ /* ネットワーク障害は無視して継続 */ }
-    }
-    activePolls.delete(id);
-  })();
-}
-let silentTimer=null;
-async function refreshIndexSilent(){ // ポーリング中の静かな更新
-  clearTimeout(silentTimer);
-  silentTimer=setTimeout(async()=>{ try{ const raw=await getOpsFile('status/index.json'); if(raw){ index=JSON.parse(td.decode(raw)); renderStats(); if(tab==='batches'&&!expanded.size) renderBatches(); } }catch{} }, 1500);
-}
-async function resumeBatch(id){
+async function hydrateResults(t, batchId){
   try{
-    const pRaw = await getOpsFile(`payloads/${id}.json.crypt`);
-    const rRaw = await getOpsFile(`results/${id}.jsonl.crypt`);
-    if(!pRaw) throw new Error('payload がありません');
-    const payload = JSON.parse(td.decode(await decryptWckp1(cfg.pass, td.decode(pRaw))));
-    const done = rRaw? td.decode(await decryptWckp1(cfg.pass, td.decode(rRaw))).split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(Boolean) : [];
-    const doneKeys = new Set(done.filter(x=>x.ok).map(x=>`${x.id}${String.fromCharCode(31)}${x.model}`));
-    const remaining = payload.filter(r=>!doneKeys.has(`${r.id}${String.fromCharCode(31)}${r.model}`));
-    if(!remaining.length){ toast('全件完了済みです'); return; }
-    if(!confirm(`${remaining.length} 件の未処理を再開しますか？`)) return;
-    await dispatchRequests(remaining);
-  }catch(e){ toast('resume 失敗: '+e.message); }
+    const raw=await getOpsFile(`results/${batchId}.jsonl.crypt`);
+    if(!raw) return;
+    const items=td.decode(await decryptWckp1(cfg.pass, td.decode(raw))).split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(Boolean);
+    t.responses.forEach((r,i)=>{
+      const it=items.find(x=>x.id===t.requests[i].id) || items[i];
+      if(!it) return;
+      r.state = it.ok ? 'done' : 'error';
+      r.content = it.content||''; r.error = it.error; r.latencyMs = it.latencyMs; r.attempts = it.attempts;
+      if(it.ok && r.content) streamIn(t, i, r.content);
+    });
+    saveTurns(); updateBubbles(t);
+  }catch(e){ console.warn('hydrate failed', e); }
 }
 
+/* ---------- ポーリング ---------- */
+async function pollTurn(t){
+  const id=t.batchId; if(!id) return;
+  for(let i=0;i<120;i++){
+    await new Promise(r=>setTimeout(r, 8000));
+    if(document.hidden){ i--; continue; } // 非アクティブでは消費しない
+    try{
+      const raw=await getOpsFile(`status/${id}.json`);
+      if(!raw) continue;
+      const st=JSON.parse(td.decode(raw));
+      if(st.state==='running'){ t.responses.forEach(r=>{ if(r.state==='dispatched'||r.state==='queued') r.state='running'; }); updateBubbles(t); }
+      if(['done','done_partial','error'].includes(st.state)){ await hydrateResults(t, id); toast(`バッチ #${id}: ${st.state}`); return; }
+    }catch(e){ /* 瞬断は無視 */ }
+  }
+  toast('ポーリング上限に達しました（実行は継続している可能性があります）');
+}
+function showBillingBanner(){
+  const b=$('#banner'); b.style.display='block';
+  b.innerHTML='⚠️ GitHub アカウントの課金設定で Actions がブロックされています。<a href="https://github.com/settings/billing" target="_blank" rel="noopener">Billing 設定を確認</a>してから再送信してください。';
+}
+function scrollBottom(){ window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'}); }
+</script>
+<script>
+'use strict';
 /* ================= コンポーザ ================= */
+let modelSel=MODELS[0]; let queue=[];
 function renderChips(){
-  $('#modelChips').innerHTML = MODELS.map(m=>`<button class="chip ${m===modelSel?'on':''}" data-m="${m}">${m}</button>`).join('');
-  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ modelSel=c.dataset.m; renderChips(); });
+  $('#modelChips').innerHTML=MODELS.map(m=>`<button class="chip ${m===modelSel?'on':''}" data-m="${m}">${m}</button>`).join('');
+  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{modelSel=c.dataset.m; renderChips();});
 }
 function renderQueue(){
-  $('#queue').innerHTML = queue.map((q,i)=>`<div class="qitem"><span class="m">${esc(q.model)}</span><span class="t">${esc(q.content.slice(0,120))}</span><button class="act" data-del="${i}" style="padding:1px 9px">削除</button></div>`).join('');
-  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ queue.splice(Number(b.dataset.del),1); renderQueue(); });
-  $('#composerHint').textContent = queue.length
-    ? `キュー ${queue.length} 件 + 入力中をまとめて送信（⌘/Ctrl+Enter）`
-    : '⌘/Ctrl + Enter で一括送信（GitHub Actions 経由）';
+  const qb=$('#qbar');
+  qb.style.display=queue.length?'flex':'none';
+  qb.innerHTML=queue.map((q,i)=>`<div class="qitem"><span class="m">${esc(q.model)}</span><span class="t">${esc(q.content.slice(0,90))}</span><button class="sbtn" data-del="${i}">×</button></div>`).join('');
+  qb.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{queue.splice(+b.dataset.del,1); renderQueue();});
 }
 function currentRequests(){
-  const text = $('#input').value.trim();
-  const reqs = queue.map((q,i)=>({id:`req-${i+1}`, model:q.model, messages:[{role:'user', content:q.content}]}));
-  if(text) reqs.push({id:`req-${reqs.length+1}`, model:modelSel, messages:[{role:'user', content:text}]});
+  const text=$('#input').value.trim();
+  const reqs=queue.map((q,i)=>({id:uid(), model:q.model, messages:[{role:'user', content:q.content}]}));
+  if(text) reqs.push({id:uid(), model:modelSel, messages:[{role:'user', content:text}]});
   return reqs;
 }
 async function send(){
-  const reqs = currentRequests();
-  if(!reqs.length) return;
-  $('#send').disabled = true;
-  try{
-    await dispatchRequests(reqs);
-    $('#input').value=''; queue=[]; renderQueue();
-  }catch(e){ toast('送信失敗: '+e.message); }
-  $('#send').disabled = false;
+  const reqs=currentRequests(); if(!reqs.length) return;
+  const t=await dispatchAsTurn(reqs, reqs.map(r=>r.messages[0].content).join(' / '));
+  if(t){ $('#input').value=''; queue=[]; renderQueue(); }
 }
-$('#send').onclick = send;
-$('#queueBtn').onclick = ()=>{ const t=$('#input').value.trim(); if(!t) return; queue.push({model:modelSel, content:t}); $('#input').value=''; renderQueue(); $('#input').focus(); };
-$('#jsonBtn').onclick = ()=>{
-  const t = $('#input').value.trim();
-  if(!t){ $('#input').value = JSON.stringify([{id:'req-1', model:modelSel, messages:[{role:'user', content:'（ここを書き換える）'}]}], null, 2); return; }
-  try{
-    const parsed = JSON.parse(t);
-    const reqs = Array.isArray(parsed)? parsed : [parsed];
-    dispatchRequests(reqs).then(()=>{ $('#input').value=''; }).catch(e=>toast('送信失敗: '+e.message));
-  }catch(e){ toast('JSON パース失敗: '+e.message); }
+$('#send').onclick=send;
+$('#queueBtn').onclick=()=>{ const t=$('#input').value.trim(); if(!t)return; queue.push({model:modelSel, content:t}); $('#input').value=''; renderQueue(); $('#input').focus(); };
+$('#jsonBtn').onclick=()=>{
+  const t=$('#input').value.trim();
+  if(!t){ $('#input').value=JSON.stringify([{id:uid(), model:modelSel, messages:[{role:'user', content:'（ここを書き換える）'}]}],null,2); return; }
+  try{ const p=JSON.parse(t); const reqs=Array.isArray(p)?p:[p]; dispatchAsTurn(reqs,'JSON モード'); $('#input').value=''; }
+  catch(e){ toast('JSON パース失敗: '+e.message); }
 };
-$('#input').addEventListener('keydown', e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){ e.preventDefault(); send(); } });
+$('#input').addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){ e.preventDefault(); send(); } });
+$('#input').addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,170)+'px'; });
 
-/* ================= ロック / 共有 ================= */
-function applyMode(){
-  const op = !!(cfg && cfg.token);
-  $('#modePill').textContent = op? '操作中':'公開モード';
-  $('#modePill').className = 'pill '+(op?'op':'live');
-  $('#repoPill').textContent = op? cfg.repo : PUBLIC_REPO;
-  $('#unlockBtn').textContent = op? '設定を開く':'操作者ロック解除';
-  $('#shareBtn').style.display = op? 'inline-block':'none';
-  $('#composer').style.display = op? 'block':'none';
-  if(!op && $('#view').children.length===0) renderBatches();
+/* ================= シート: セッション / 実行ログ ================= */
+async function fetchPublicStatus(path){
+  const urls=[`status/${path}`,`https://raw.githubusercontent.com/${PUBLIC_REPO}/main/status/${path}`];
+  for(const u of urls){ try{ const r=await fetch(u,{cache:'no-store'}); if(r.ok) return await r.json(); }catch{} }
+  return null;
 }
-$('#unlockBtn').onclick = ()=>{ $('#fRepo').value=cfg?.repo||''; $('#fToken').value=cfg?.token||''; $('#fPass').value=cfg?.pass||''; $('#modal').classList.add('open'); };
-$('#lockCancel').onclick = ()=>$('#modal').classList.remove('open');
-$('#lockOk').onclick = async ()=>{
+async function openSessions(){
+  $('#sessionsSheet').classList.add('open');
+  const body=$('#sessionsBody');
+  body.innerHTML='<div class="prog"><span class="spin"></span>読み込み中…</div>';
+  let sessions=null, probe=null;
+  if(cfg&&cfg.token){ try{ const raw=await getOpsFile('status/sessions.json'); if(raw) sessions=JSON.parse(td.decode(raw)); }catch{} }
+  if(!sessions) sessions=await fetchPublicStatus('sessions.json');
+  if(cfg&&cfg.token){ try{ const raw=await getOpsFile('status/probe-latest.json'); if(raw) probe=JSON.parse(td.decode(raw)); }catch{} }
+  if(!probe) probe=await fetchPublicStatus('probe-latest.json');
+  const ss=(sessions&&sessions.sessions)||[];
+  body.innerHTML=`
+    <div class="stat-grid">
+      <div class="stat"><div class="v">${ss.length}</div><div class="l">セッション数</div></div>
+      <div class="stat"><div class="v" style="color:var(--ok)">${ss.filter(s=>s.probeOk===true).length}</div><div class="l">正常</div></div>
+      <div class="stat"><div class="v" style="color:var(--err)">${ss.filter(s=>s.probeOk===false).length}</div><div class="l">失敗</div></div>
+      <div class="stat"><div class="v">${probe?rel(probe.checkedAt):'—'}</div><div class="l">最終プローブ</div></div>
+    </div>
+    <table class="items"><tr><th>状態</th><th>サービス</th><th>アカウント</th><th>保存日時</th><th>cookies</th></tr>
+    ${ss.map(s=>`<tr><td><span class="dot ${s.probeOk===true?'ok':(s.probeOk===false?'dead':'unknown')}"></span>${s.probeOk===true?'正常':(s.probeOk===false?'失敗':'未検査')}</td>
+      <td>${esc(s.service)}</td><td>${esc(s.account)}</td><td>${s.savedAt?rel(s.savedAt):'—'}</td><td>${s.cookieCount??'—'}</td></tr>`).join('')||'<tr><td colspan="5">バンドル未配置</td></tr>'}</table>
+    <div style="font-size:11.5px;color:var(--ink2);margin-top:10px">失敗時の復旧: ローカルで <code>npm run login:&lt;service&gt;</code> → <code>pack-session --push</code>。state 汚染時は <code>ops-commit restore-state</code> で世代復元。</div>`;
+}
+async function openRuns(){
+  $('#runsSheet').classList.add('open');
+  const body=$('#runsBody');
+  if(!cfg||!cfg.token){ body.innerHTML='<div class="locked" style="text-align:center;color:var(--ink2);padding:30px">実行ログはロック解除後に表示されます。</div>'; return; }
+  body.innerHTML='<div class="prog"><span class="spin"></span>読み込み中…</div>';
+  try{
+    const d=await ghApi(`/repos/${cfg.repo}/actions/runs?per_page=15`);
+    body.innerHTML=`<table class="items"><tr><th>ワークフロー</th><th>イベント</th><th>状態</th><th>開始</th><th></th></tr>
+      ${(d.workflow_runs||[]).map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.event)}</td>
+        <td>${r.conclusion?esc(r.conclusion):'<span class="badge b-running">running</span>'}</td><td>${rel(r.created_at)}</td>
+        <td><a href="${esc(r.html_url)}" target="_blank" rel="noopener">open</a></td></tr>`).join('')||'<tr><td colspan="5">実行履歴なし</td></tr>'}</table>`;
+  }catch(e){ body.innerHTML=`<div style="color:var(--err);padding:20px">${esc(e.message)}</div>`; }
+}
+$('#sessionsBtn').onclick=openSessions;
+$('#runsBtn').onclick=openRuns;
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('.sheet').classList.remove('open'));
+$('#probeNow').onclick=async()=>{
+  if(!cfg)return;
+  try{ await ghApi(`/repos/${cfg.repo}/actions/workflows/probe.yml/dispatches`,{method:'POST',body:{ref:'main'}}); toast('プローブを起動しました'); }
+  catch(e){ toast('起動失敗: '+e.message.slice(0,120)); }
+};
+
+/* ================= ロック / 共有（ゼロ入力設計の核心） ================= */
+function shareURL(withToken){
+  const payload=withToken?cfg:{repo:cfg.repo, pass:cfg.pass};
+  return location.origin+location.pathname+'#k='+encodeURIComponent(b64u(JSON.stringify(payload)));
+}
+function openLock(){
+  $('#fRepo').value=cfg?.repo||''; $('#fToken').value=cfg?.token||''; $('#fPass').value=cfg?.pass||'';
+  $('#sharebox').style.display=cfg&&cfg.token?'block':'none';
+  if(cfg&&cfg.token) $('#shareLink').value=shareURL(true);
+  $('#modal').classList.add('open');
+}
+$('#unlockBtn').onclick=openLock;
+$('#lockCancel').onclick=()=>$('#modal').classList.remove('open');
+$('#lockOk').onclick=async()=>{
   const repo=$('#fRepo').value.trim(), token=$('#fToken').value.trim(), pass=$('#fPass').value;
   if(!repo||!token||!pass){ toast('3 項目すべて必須です'); return; }
   cfg={repo, token, pass}; saveCfg();
-  try{ const u = await ghApi('/user'); toast(`ロック解除しました（@${u.login}）`); }
-  catch(e){ toast('検証失敗: '+e.message); }
-  $('#modal').classList.remove('open');
-  applyMode(); await refreshIndex(); renderView();
+  try{ const u=await ghApi('/user'); toast(`ロック解除しました（@${u.login}）`); applyMode(); renderChat(); }
+  catch(e){ toast('検証失敗: '+e.message.slice(0,140)); cfg=null; return; }
+  $('#sharebox').style.display='block'; $('#shareLink').value=shareURL(true);
 };
-$('#shareBtn').onclick = async ()=>{
-  const full = btoa(JSON.stringify(cfg));
-  const lite = btoa(JSON.stringify({repo:cfg.repo, pass:cfg.pass})); // トークンなし: 閲覧+複号のみ
-  const base = location.origin+location.pathname;
-  await navigator.clipboard.writeText(base+'#k='+encodeURIComponent(full));
-  if(confirm('コマンド可能リンク（トークン込み）をコピーしました。\nトークンなしリンク（閲覧のみ）もコピーしますか？')){
-    await navigator.clipboard.writeText(base+'#k='+encodeURIComponent(lite));
+$('#copyLink').onclick=()=>{ navigator.clipboard.writeText(shareURL(true)).then(()=>toast('鍵付きリンクをコピーしました')); };
+$('#nativeShare').onclick=()=>{
+  const url=shareURL(true);
+  if(navigator.share){ navigator.share({title:'web2api console', url}).catch(()=>{}); }
+  else navigator.clipboard.writeText(url).then(()=>toast('この端末ではコピーにフォールバックしました'));
+};
+$('#shareBtn').onclick=openLock;
+
+function applyMode(){
+  const op=!!(cfg&&cfg.token);
+  $('#modePill').textContent=op?'操作中':'公開モード';
+  $('#modePill').className='pill '+(op?'op':'');
+  $('#repoPill').textContent=op?cfg.repo:PUBLIC_REPO;
+  $('#unlockBtn').textContent=op?'設定・共有':'ロック解除';
+  $('#shareBtn').style.display=op?'inline-block':'none';
+  $('#probeNow').style.display=op?'inline-block':'none';
+  $('#composer').style.opacity=op?'1':'0.55';
+}
+
+/* ================= 初期化（鍵付きリンクなら完全無入力で操作中モード） ================= */
+renderChips(); renderQueue(); applyMode(); renderChat();
+(async()=>{
+  if(cfg&&cfg.token){
+    try{ const u=await ghApi('/user'); toast(`鍵付きリンクで接続しました — @${u.login}（操作可能）`); applyMode(); renderChat(); }
+    catch(e){ toast('リンクの鍵が無効です: '+e.message.slice(0,120)); cfg=null; applyMode(); renderChat(); }
   }
-  alert('リンクの受け取った人は「誰でも」サイトに入れ、\n・トークン込みリンク → 閲覧＋命令可能\n・トークンなしリンク → 閲覧＋結果の復号のみ\nフラグメント（#以降）はいかなるサーバにも送信されません。');
-};
-
-/* ================= タブ ================= */
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active'); tab=t.dataset.tab; renderView();
-});
-
-/* ================= 起動 ================= */
-renderChips(); renderQueue(); applyMode();
-refreshIndex().then(renderView);
-setInterval(()=>{ refreshIndex(); if(tab==='sessions') renderSessions(); }, 60000); // 1 分ごとに自動更新
+  // 未完了ターンを再開ポーリング
+  for(const t of turns){
+    if(t.batchId && t.responses.some(r=>!['done','error','done_partial'].includes(r.state))) pollTurn(t);
+    if(t.batchId && t.responses.every(r=>!r.content)) hydrateResults(t, t.batchId).catch(()=>{});
+  }
+})();
 </script>
 </body>
 </html>
