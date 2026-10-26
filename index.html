@@ -209,14 +209,21 @@ function b64bytes(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=Str
 function bytesFromB64(b64){ const bin=atob(String(b64).replace(/\n/g,'')); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
-/* ================= 設定（ゼロ入力: #k= フラグメント or localStorage） ================= */
+/* ================= 設定（ゼロ入力: #k= / ?k= or localStorage） ================= */
+// フラグメントはリダイレクトや外部アプリ経由で失われがちなので、クエリ文字列 ?k= も受理する。
+// さらに「どこから来た鍵か」を常にトレースできるよう、取得経路を cfg.__src に記録する。
 function loadCfg(){
-  let cfg = null;
+  let cfg = null, src = null;
   if (location.hash.startsWith('#k=')){
-    try { cfg = JSON.parse(ub64u(decodeURIComponent(location.hash.slice(3)))); history.replaceState(null,'',location.pathname+location.search); }
-    catch { setTimeout(()=>toast('鍵付きリンクの読み取りに失敗しました — リンク全体がコピーされているか確認してください'), 300); }
+    try { cfg = JSON.parse(ub64u(decodeURIComponent(location.hash.slice(3)))); src='hash'; } catch { cfg=null; }
   }
-  if (!cfg){ try { const raw=localStorage.getItem('w2ckdash'); if(raw) cfg=JSON.parse(raw); } catch {} }
+  if (!cfg){
+    const m = location.search.match(/[?&]k=([^&]+)/);
+    if (m){ try { cfg = JSON.parse(ub64u(decodeURIComponent(m[1]))); src='query'; } catch { cfg=null; } }
+  }
+  if (!cfg){ try { const raw=localStorage.getItem('w2ckdash'); if(raw){ cfg=JSON.parse(raw); src='local'; } } catch {} }
+  if (cfg && src){ cfg.__src=src; try{ history.replaceState(null,'',location.pathname); } catch {} }
+  else if (cfg && !src){ cfg.__src='local'; }
   return cfg;
 }
 function saveCfg(){ if(cfg) localStorage.setItem('w2ckdash', JSON.stringify(cfg)); }
@@ -377,6 +384,7 @@ let cooldown=false;
 async function dispatchAsTurn(requests, userText){
   if(!cfg||!cfg.token){ toast('ロック解除が必要です（鍵付きリンクを開くか、右上から解除）'); openLock(); return null; }
   if(!cfg.pass){ toast('STATE_PASSPHRASE が未設定です'); openLock(); return null; }
+  if(window.__keyOk===false){ toast('⚠️ 暗号鍵が壊れています — 最新の鍵付きリンクを開き直してください'); openLock(); return null; }
   if(cooldown){ toast('少し待ってから再送信してください'); return null; }
   const t={ id:uid(), ts:Date.now(), requests, responses:[], batchId:null };
   requests.forEach(r=>t.responses.push({model:r.model, state:'queued'}));
@@ -559,7 +567,8 @@ $('#probeNow').onclick=async()=>{
 /* ================= ロック / 共有（ゼロ入力設計の核心） ================= */
 function shareURL(withToken){
   const payload=withToken?cfg:{repo:cfg.repo, pass:cfg.pass};
-  return location.origin+location.pathname+'#k='+encodeURIComponent(b64u(JSON.stringify(payload)));
+  // クエリ文字列形式 (?k=) を基本にする — フラグメントはリダイレクトや外部アプリ経由で落ちることがある
+  return location.origin+location.pathname+'?k='+encodeURIComponent(b64u(JSON.stringify(payload)));
 }
 function openLock(){
   $('#fRepo').value=cfg?.repo||''; $('#fToken').value=cfg?.token||''; $('#fPass').value=cfg?.pass||'';
@@ -597,7 +606,7 @@ $('#lockOk').onclick=async()=>{
   const repo=$('#fRepo').value.trim(), token=$('#fToken').value.trim(), pass=$('#fPass').value;
   if(!repo||!token||!pass){ toast('3 項目すべて必須です'); return; }
   const prev=cfg; cfg={repo, token, pass}; // 検証が通るまで localStorage には保存しない
-  try{ const u=await ghApi('/user'); saveCfg(); toast(`ロック解除しました（@${u.login}）`); renderTokInfo(u); applyMode(); renderChat(); }
+  try{ const u=await ghApi('/user'); saveCfg(); toast(`ロック解除しました（@${u.login}）`); renderTokInfo(u); applyMode(); renderChat(); validateKey(); }
   catch(e){ toast('検証失敗: '+e.message.slice(0,140)); cfg=prev; return; }
   $('#sharebox').style.display='block'; $('#shareLink').value=shareURL(true);
 };
@@ -632,11 +641,32 @@ function applyMode(){
 }
 
 /* ================= 初期化（鍵付きリンクなら完全無入力で操作中モード） ================= */
+// 鍵の真正性を暗号学的に検証する: ランナーが書く canary を復号できなければ
+// この端末の pass は壊れている（旧リンク由来など）。silent な誤動作を根本で防ぐ。
+async function validateKey(){
+  if(!cfg||!cfg.pass) return true;
+  let raw=null;
+  try{ raw=await getOpsFile('status/canary.json.crypt'); }catch{}
+  if(!raw) return true; // canary 未生成（初回セットアップ前）は検証スキップ
+  try{ await decryptWckp1(cfg.pass, td.decode(raw)); window.__keyOk=true; return true; }
+  catch{
+    const src=cfg.__src||'local';
+    window.__keyOk=false;
+    toast('⚠️ この端末の暗号鍵が古い/壊れています — 最新の鍵付きリンクを開き直してください');
+    console.warn('[w2ck] pass mismatch (src='+src+')');
+    if(src!=='hash'&&src!=='query'){ openLock(); }
+    return false;
+  }
+}
 renderChips(); renderQueue(); applyMode(); renderChat();
 (async()=>{
   if(cfg&&cfg.token){
-    try{ const u=await ghApi('/user'); saveCfg(); toast(`鍵付きリンクで接続しました — @${u.login}（操作可能）`); applyMode(); renderChat(); }
-    catch(e){ toast('リンクの鍵が無効です: '+e.message.slice(0,120)); cfg=null; applyMode(); renderChat(); }
+    const keyOk=await validateKey();
+    if(cfg&&cfg.token){
+      try{ const u=await ghApi('/user'); saveCfg(); toast(`鍵付きリンクで接続しました — @${u.login}（操作可能）`); applyMode(); renderChat(); }
+      catch(e){ toast('リンクの鍵が無効です: '+e.message.slice(0,120)); cfg=null; applyMode(); renderChat(); }
+    }
+    if(!keyOk){ /* 鍵壊れ警告は validateKey 内で表示済み。壊れ鍵でも読み取り専用表示は継続 */ }
   }
   // 未完了ターンを再開ポーリング
   for(const t of turns){
