@@ -203,7 +203,7 @@ const te = new TextEncoder(), td = new TextDecoder();
 function toast(msg){ const d=document.createElement('div'); d.className='tmsg'; d.textContent=msg; $('#toast').appendChild(d); setTimeout(()=>d.remove(), 4000); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function rel(iso){ if(!iso)return '—'; const s=(Date.now()-new Date(iso).getTime())/1000; if(s<60)return 'たった今'; if(s<3600)return Math.floor(s/60)+' 分前'; if(s<86400)return Math.floor(s/3600)+' 時間前'; return Math.floor(s/86400)+' 日前'; }
-function b64u(str){ return btoa(String.fromCharCode(...te.encode(str))); }        // unicode安全 base64
+function b64u(str){ const u=te.encode(str); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null, u.subarray(i,i+0x8000)); return btoa(s); } // unicode安全 base64（大文字列でもスタックオーバーフローしない）
 function ub64u(b64){ const bin=atob(b64); return td.decode(new Uint8Array([...bin].map(c=>c.charCodeAt(0)))); }
 function b64bytes(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000)); return btoa(s); }
 function bytesFromB64(b64){ const bin=atob(String(b64).replace(/\n/g,'')); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
@@ -323,9 +323,10 @@ function renderChat(){
   c.innerHTML='';
   for(const t of turns) c.appendChild(turnNode(t));
 }
+function reqText(r){ return (r.messages&&r.messages[0]&&r.messages[0].content) || r.content || ''; }
 function turnNode(t){
   const wrap=document.createElement('div');
-  const uTxt = t.requests.map(r=>r.content).join('\n——（複数リクエスト）——\n');
+  const uTxt = t.requests.map(reqText).join('\n——（複数リクエスト）——\n');
   let inner=`<div class="msg user"><div class="av u">あ</div><div class="body"><div class="meta"><b>あなた</b><span>${rel(t.ts)}</span></div>
     <div class="bub"><div class="txt">${esc(uTxt)}</div></div></div></div>`;
   t.responses.forEach((r,i)=>{
@@ -337,11 +338,11 @@ function turnNode(t){
   });
   wrap.innerHTML=inner;
   wrap.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{ const [tid,i]=b.dataset.copy.split(':'); navigator.clipboard.writeText(turnOf(tid).responses[+i].content||'').then(()=>toast('コピーしました')); });
-  wrap.querySelectorAll('[data-regen]').forEach(b=>b.onclick=()=>{ const [tid,i]=b.dataset.copy.split(':'); const t=turnOf(tid); const r=t.requests[+i]; dispatchAsTurn([{id:uid(), model:r.model, messages:r.messages}], r.content); });
+  wrap.querySelectorAll('[data-regen]').forEach(b=>b.onclick=()=>{ const [tid,i]=b.dataset.regen.split(':'); const t=turnOf(tid); if(!t||!t.requests[+i]) return; const r=t.requests[+i]; dispatchAsTurn([{id:uid(), model:r.model, messages:r.messages}], reqText(r)); });
   return wrap;
 }
 function respInner(r){
-  if(r.state==='error'||r.state==='done_partial'&&r.error&&!r.content) return `<div class="txt" style="color:var(--err)">${esc(r.error||'失敗')}</div>`;
+  if(r.state==='error'||(r.state==='done_partial'&&r.error&&!r.content)) return `<div class="txt" style="color:var(--err)">${esc(r.error||'失敗')}</div>`;
   if(r.state==='queued'||r.state==='dispatched'||r.state==='running') return `<div class="prog"><span class="spin"></span>${r.state==='running'?'実行中…':'GitHub Actions キュー待ち…'}</div>`;
   if(r.streaming) return `<div class="txt">${md(r.shown)}<span class="cursor"></span></div>`;
   return `<div class="txt">${md(r.content||'')}</div>`;
@@ -390,7 +391,8 @@ async function dispatchAsTurn(requests, userText){
     return t;
   }catch(e){
     const msg=e.message||String(e);
-    t.responses.forEach(r=>{ r.state='error'; r.error=msg; });
+    t.responses.forEach(r=>{ r.state='error'; r.error=msg; r.streaming=false; });
+    t.responses.forEach((_,i)=>writers.delete(t.id+':'+i)); // ストリーマ残骸を掃除
     saveTurns(); updateBubbles(t);
     if(/payments|spending limit/i.test(msg)) showBillingBanner();
     else toast('送信失敗: '+msg.slice(0,140));
@@ -436,9 +438,13 @@ async function hydrateResults(t, batchId){
 /* ---------- ポーリング ---------- */
 async function pollTurn(t){
   const id=t.batchId; if(!id) return;
-  for(let i=0;i<120;i++){
-    await new Promise(r=>setTimeout(r, 8000));
-    if(document.hidden){ i--; continue; } // 非アクティブでは消費しない
+  const started=Date.now();
+  const MAX_MS=10*60*1000; // 壁時計上限（バックグラウンド滞留で無限化しない）
+  const steps=[2000,3000,5000]; // 最初だけ密に → ほぼ API 体感
+  let i=0;
+  while(Date.now()-started<MAX_MS){
+    await new Promise(r=>setTimeout(r, steps[Math.min(i++,steps.length-1)]));
+    if(document.hidden && Date.now()-started<8*60*1000){ continue; } // 非アクティブでは消費しない（8分超えたら諦めて進める）
     try{
       const raw=await getOpsFile(`status/${id}.json`);
       if(!raw) continue;
@@ -581,9 +587,9 @@ function renderTokInfo(u){
 $('#lockOk').onclick=async()=>{
   const repo=$('#fRepo').value.trim(), token=$('#fToken').value.trim(), pass=$('#fPass').value;
   if(!repo||!token||!pass){ toast('3 項目すべて必須です'); return; }
-  cfg={repo, token, pass}; saveCfg();
-  try{ const u=await ghApi('/user'); toast(`ロック解除しました（@${u.login}）`); renderTokInfo(u); applyMode(); renderChat(); }
-  catch(e){ toast('検証失敗: '+e.message.slice(0,140)); cfg=null; return; }
+  const prev=cfg; cfg={repo, token, pass}; // 検証が通るまで localStorage には保存しない
+  try{ const u=await ghApi('/user'); saveCfg(); toast(`ロック解除しました（@${u.login}）`); renderTokInfo(u); applyMode(); renderChat(); }
+  catch(e){ toast('検証失敗: '+e.message.slice(0,140)); cfg=prev; return; }
   $('#sharebox').style.display='block'; $('#shareLink').value=shareURL(true);
 };
 $('#wipeBtn').onclick=()=>{
