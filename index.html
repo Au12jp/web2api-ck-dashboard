@@ -620,7 +620,7 @@ function applyMode(){
 renderChips(); renderQueue(); applyMode(); renderChat();
 (async()=>{
   if(cfg&&cfg.token){
-    try{ const u=await ghApi('/user'); toast(`鍵付きリンクで接続しました — @${u.login}（操作可能）`); applyMode(); renderChat(); }
+    try{ const u=await ghApi('/user'); saveCfg(); toast(`鍵付きリンクで接続しました — @${u.login}（操作可能）`); applyMode(); renderChat(); }
     catch(e){ toast('リンクの鍵が無効です: '+e.message.slice(0,120)); cfg=null; applyMode(); renderChat(); }
   }
   // 未完了ターンを再開ポーリング
