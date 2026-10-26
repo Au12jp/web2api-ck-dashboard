@@ -213,7 +213,8 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 function loadCfg(){
   let cfg = null;
   if (location.hash.startsWith('#k=')){
-    try { cfg = JSON.parse(ub64u(location.hash.slice(3))); history.replaceState(null,'',location.pathname+location.search); } catch {}
+    try { cfg = JSON.parse(ub64u(decodeURIComponent(location.hash.slice(3)))); history.replaceState(null,'',location.pathname+location.search); }
+    catch { setTimeout(()=>toast('鍵付きリンクの読み取りに失敗しました — リンク全体がコピーされているか確認してください'), 300); }
   }
   if (!cfg){ try { const raw=localStorage.getItem('w2ckdash'); if(raw) cfg=JSON.parse(raw); } catch {} }
   return cfg;
